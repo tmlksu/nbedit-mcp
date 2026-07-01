@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+（次の変更をここに追記する）
+
+## [0.2.0] - 2026-07-02
+
+要約アウトラインと出力の整形読み取り。実行機能は追加していない（ADR-0002/0003 維持）。
+
 ### Added
 
 - `list_cells` に `summary`（先頭 `#` コメント block、cap 3行/100字。無ければ1行プレビュー）と
@@ -40,5 +46,6 @@
 - ドキュメント: README（CI バッジ付き）、CLAUDE.md、ADR 0001–0007、本 CHANGELOG、HANDOFF.md。
 - パッケージング: `pyproject.toml`（hatchling、2 エントリポイント、依存 `nbformat` + `mcp`）。
 
-[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tmlksu/nbedit-mcp/releases/tag/v0.1.0

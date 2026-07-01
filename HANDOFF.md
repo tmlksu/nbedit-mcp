@@ -7,15 +7,9 @@
 
 ## 現在地（一言で）
 
-**v0.1.0 リリース済み**（タグ `v0.1.0`）。現在 **v0.2.0 をブランチ `feat/v0.2.0-summary-outputs`
-で作業中**（要約アウトライン + outputs 整形読み取り）。`main` は v0.1.0 のまま。
-
-### 作業中ブランチ `feat/v0.2.0-summary-outputs`（未マージ）
-
-- `list_cells`: `summary`（先頭 `#` コメント block）+ `has_error` を追加（`source_preview` は廃止）。
-- `read_cell`: outputs を整形（`outputs_text`/`has_error`/`output_types`、raw は返さない）。**実行はしない**。
-- ADR 0008/0009 追加。テスト 33 passed。push 済み、PR 未作成。
-- 次: PR 作成 → CI 緑確認 → main マージ → `v0.2.0` タグ。
+**v0.2.0 リリース済み**（タグ `v0.2.0`、`main`）。v0.1.0 の全経路に加え、要約アウトライン
+（`list_cells` の `summary` + `has_error`）と outputs 整形読み取り（`read_cell` の `outputs_text`
+/`has_error`/`output_types`）を追加。実行機能は入れていない（ADR-0002/0003 維持）。テスト 33 passed。
 
 ## 完成しているもの（検証済み）
 
@@ -37,9 +31,10 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.1.0）
+## 済み（〜v0.2.0）
 
-- core / CLI / MCP(stdio) 実装、27 passed、CI green（3.10/3.11/3.12）。
+- v0.2.0: 要約アウトライン + outputs 整形読み取り（ADR-0008/0009）、33 passed。
+- core / CLI / MCP(stdio) 実装、CI green（3.10/3.11/3.12）。
 - 実利用検証: VS Code + Copilot(Agent) から `nb-edit-mcp` を叩き、`.ipynb` 編集に成功。
   `.ipynb.bak` 生成・outputs 空維持を実データで確認。
 - `examples/` は `.gitkeep` のみ追跡、`*.ipynb` は gitignore（スクラッチ置き場）。
