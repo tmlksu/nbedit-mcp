@@ -1,7 +1,7 @@
 """Integration tests: drive the MCP server over real stdio.
 
 These spawn the server as a subprocess (`python -m notebook_edit.mcp_server`) and
-talk to it through the MCP client, exactly as GitHub Copilot would. They verify
+talk to it through the MCP client, exactly as any MCP client would. They verify
 the wiring (tool registration, argument passing, NotebookError -> ToolError) that
 the pure-core tests in test_core.py cannot reach.
 """

@@ -22,8 +22,8 @@
 
 ## 次の一手（優先度順・任意）
 
-1. **社内 Git への配布**: 会社の Git に置き、`.vscode/mcp.json` を
-   `--from git+<社内URL> nb-edit-mcp` で各自設定する運用に乗せる。
+1. **配布**: クライアントの MCP 設定に `--from git+<repo URL> nb-edit-mcp`
+   （またはローカル path）を登録する運用に乗せる。
 2. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
    新しい major に上げると消える。緊急ではない。
 3. **機能拡張の検討ネタ**（要望が出たら ADR とセットで）:
@@ -35,7 +35,7 @@
 
 - v0.2.0: 要約アウトライン + outputs 整形読み取り（ADR-0008/0009）、33 passed。
 - core / CLI / MCP(stdio) 実装、CI green（3.10/3.11/3.12）。
-- 実利用検証: VS Code + Copilot(Agent) から `nb-edit-mcp` を叩き、`.ipynb` 編集に成功。
+- 実利用検証: MCP クライアント（AI エージェント）から `nb-edit-mcp` を叩き、`.ipynb` 編集に成功。
   `.ipynb.bak` 生成・outputs 空維持を実データで確認。
 - `examples/` は `.gitkeep` のみ追跡、`*.ipynb` は gitignore（スクラッチ置き場）。
 

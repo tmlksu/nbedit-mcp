@@ -5,7 +5,7 @@
 
 ## Context
 
-AI が「実行結果を見たい」場面がある。実行自体は Copilot 側に残す（[ADR-0002](0002-no-kernel-execution.md)）が、
+AI が「実行結果を見たい」場面がある。実行自体はクライアント／カーネル側に残す（[ADR-0002](0002-no-kernel-execution.md)）が、
 **既存の outputs を読む**のはスコープ内。ただし nbformat の raw な output 辞書は
 base64 画像や mimebundle を含み、そのまま AI コンテキストへ流すのは無駄が多く読みにくい。
 
@@ -23,7 +23,7 @@ base64 画像や mimebundle を含み、そのまま AI コンテキストへ流
 
 ## Consequences
 
-- AI が結果・エラーを軽量に確認でき、編集→（Copilot が実行）→確認のループが回る。
+- AI が結果・エラーを軽量に確認でき、編集→（クライアント／カーネルが実行）→確認のループが回る。
 - base64 画像などの重い raw をコンテキストに流さない。
 - 破壊的変更: `read_cell` の `outputs`(raw) → `outputs_text`/`has_error`/`output_types`（pre-1.0 のため許容）。
 - 制約: raw output が必要な高度な用途には応えない（read-only の整形ビューに徹する）。

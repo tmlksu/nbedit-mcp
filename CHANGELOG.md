@@ -26,7 +26,7 @@
 
 ## [0.1.0] - 2026-07-02
 
-初回リリース。core / CLI / MCP(stdio) の3経路、CI、実利用（VS Code + Copilot）検証まで完了。
+初回リリース。core / CLI / MCP(stdio) の3経路、CI、MCP クライアントからの実利用検証まで完了。
 
 ### Added
 

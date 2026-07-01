@@ -7,13 +7,13 @@
 ## プロジェクト概要
 
 Jupyter notebook (`.ipynb`) の**構造編集**に特化した MCP サーバー兼 CLI。
-GitHub Copilot (VS Code) から MCP stdio 経由で `.ipynb` を編集させるのが主用途。
-CLI としても直接使える。PyPI 公開はせず、社内 Git 配布 or ローカル path 指定で `uvx` から叩く想定。
+MCP 対応クライアント（AI エージェント）から stdio 経由で `.ipynb` を編集させるのが主用途。
+CLI としても直接使える。Git URL またはローカル path 指定で `uvx` から実行できる。
 
 ### スコープ境界（意図的に狭い）
 
 - **やること**: セルの構造編集（list / read / insert / edit / patch / delete / move）
-- **やらないこと**: カーネル実行。実行は Copilot / Azure Codex 側の既存機能に任せる。
+- **やらないこと**: カーネル実行。実行は呼び出し側のクライアント／カーネルに任せる。
   → 「実行する」系のツールや依存を足したくなったら、まず [ADR-0002](docs/adr/0002-no-kernel-execution.md) を読むこと。
 
 ## アーキテクチャ

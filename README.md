@@ -3,7 +3,7 @@
 [![CI](https://github.com/tmlksu/nbedit-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/tmlksu/nbedit-mcp/actions/workflows/ci.yml)
 
 Jupyter notebook (`.ipynb`) の**構造編集**に特化した MCP サーバー兼 CLI。
-カーネル実行は行わない（実行は Copilot / Azure Codex 側の既存機能に任せる）。
+カーネル実行は行わない（実行は呼び出し側のクライアント／カーネルに任せる）。
 
 コアロジック (`core.py`) を CLI (`cli.py`) と MCP サーバー (`mcp_server.py`) が
 薄くラップする構成。ロジックは一箇所だけ。
@@ -44,28 +44,31 @@ uv run nb-edit move-cell    foo.ipynb 0 3
 - インデックスは 0 始まり。負値は不可。
 - 結果は JSON で stdout に出力。エラーは stderr + 終了コード 1。
 
-## MCP サーバー (GitHub Copilot / VS Code)
+## MCP サーバー
 
-`.vscode/mcp.json`:
+MCP 対応クライアントの stdio サーバー設定に `nb-edit-mcp` を登録する。設定ファイルの
+場所・形式はクライアントによって異なるが、`command` / `args` は概ね共通。
+
+ローカルの作業コピーを使う場合:
 
 ```json
 {
   "servers": {
     "notebook-edit": {
       "command": "uvx",
-      "args": ["--from", "/path/to/lw-nbedit-mcp", "nb-edit-mcp"]
+      "args": ["--from", "/path/to/nbedit-mcp", "nb-edit-mcp"]
     }
   }
 }
 ```
 
-社内 Git 配布時は `--from` を Git URL に差し替える:
+Git から取得する場合は `--from` を Git URL に差し替える:
 
 ```json
-"args": ["--from", "git+https://<your-git>/lw-nbedit-mcp", "nb-edit-mcp"]
+"args": ["--from", "git+https://github.com/<owner>/nbedit-mcp", "nb-edit-mcp"]
 ```
 
-パスはサーバーの CWD（VS Code ワークスペース）基準で解決される。
+相対パスはサーバーの CWD（通常はクライアントが開いているプロジェクト）基準で解決される。
 
 ### 公開ツール
 
@@ -89,7 +92,7 @@ uv run nb-edit move-cell    foo.ipynb 0 3
   になる（最大 3 行 / 各 100 字）。一覧が目次として機能する。
 - **出力**: `read_cell` は既存の実行結果を整形して返す（`outputs_text`：stdout/結果を連結、
   エラーは強調、画像は `[image/png]` プレースホルダ、2000 字で truncate）。
-  **セル実行はしない**——実行は Copilot / カーネル側に任せ、本ツールは保存済み outputs を読むだけ。
+  **セル実行はしない**——実行はクライアント／カーネル側に任せ、本ツールは保存済み outputs を読むだけ。
 
 ## テスト
 

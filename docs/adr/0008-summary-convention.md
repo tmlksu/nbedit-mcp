@@ -19,7 +19,7 @@
 - cap: 最大 3 行 / 各行 100 字。
 - `list_cells` は `source_preview` を廃し `summary`（複数行可）を返す。
 - insert/edit の tool description に「コードセルは先頭に `#` 要約を付ける」と明記し、
-  Copilot がこの規約に沿ってメタデータを書くよう誘導する。
+  クライアント（AI エージェント）がこの規約に沿ってメタデータを書くよう誘導する。
 
 ## Consequences
 
