@@ -5,14 +5,11 @@
 
 ## [Unreleased]
 
-### Added
+（次の変更をここに追記する）
 
-- MCP stdio 結合テスト `tests/test_mcp_stdio.py`: サーバーを実サブプロセスとして起動し、
-  tool 列挙・insert→patch→read のラウンドトリップ・エラー時 `isError` を検証（3 件）。
-- GitHub Actions CI `.github/workflows/ci.yml`: Python 3.10/3.11/3.12 で `uv sync` → `pytest`。
-- dev 依存 `pytest-asyncio`（async な stdio テスト用、`asyncio_mode = "auto"`）。
+## [0.1.0] - 2026-07-02
 
-## [0.1.0] - 2026-07-01
+初回リリース。core / CLI / MCP(stdio) の3経路、CI、実利用（VS Code + Copilot）検証まで完了。
 
 ### Added
 
@@ -25,9 +22,11 @@
 - CLI `notebook_edit/cli.py`（argparse、エントリポイント `nb-edit`）。JSON 出力・終了コード。
 - MCP stdio サーバー `notebook_edit/mcp_server.py`（FastMCP、エントリポイント `nb-edit-mcp`）。
   7 ツールを公開、`NotebookError` を `ToolError` に変換。
-- pytest スイート `tests/test_core.py`（24 件）: ラウンドトリップ・output 消去・
-  atomic write/backup・3 種のエラー。
-- ドキュメント: README、CLAUDE.md、ADR 0001–0007、本 CHANGELOG、HANDOFF.md。
+- pytest スイート `tests/test_core.py`（24 件）+ `tests/test_mcp_stdio.py`（3 件、
+  サーバーを実サブプロセス起動して tool 列挙・ラウンドトリップ・`isError` を検証）。計 27 件。
+- dev 依存 `pytest-asyncio`（stdio テスト用、`asyncio_mode = "auto"`）。
+- GitHub Actions CI `.github/workflows/ci.yml`: Python 3.10/3.11/3.12 で `uv sync` → `pytest`。
+- ドキュメント: README（CI バッジ付き）、CLAUDE.md、ADR 0001–0007、本 CHANGELOG、HANDOFF.md。
 - パッケージング: `pyproject.toml`（hatchling、2 エントリポイント、依存 `nbformat` + `mcp`）。
 
 [Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.1.0...HEAD

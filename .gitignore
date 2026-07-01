@@ -20,3 +20,6 @@ dist/
 
 # VS Code MCP config (machine-specific local path)
 .vscode/mcp.json
+
+# Example sandbox notebooks (scratch, not tracked)
+examples/*.ipynb

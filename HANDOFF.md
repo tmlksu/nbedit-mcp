@@ -3,13 +3,13 @@
 次のセッション（人間 or LLM）が最初に読むファイル。「今どこまで出来ていて、次に何をするか」だけを書く。
 恒久ルールは [CLAUDE.md](CLAUDE.md)、決定理由は [docs/adr/](docs/adr/)、変更履歴は [CHANGELOG.md](CHANGELOG.md)。
 
-**最終更新: 2026-07-01**
+**最終更新: 2026-07-02**
 
 ## 現在地（一言で）
 
-v0.1.0 の骨格が完成し、GitHub（`git@github.com:tmlksu/nbedit-mcp.git`）の `main` に push 済み。
-core / CLI / MCP(stdio) の3経路すべてテスト済み（**27 passed**）。CI も整備済み。
-次は「実利用での検証」と「リリース」フェーズ。
+**v0.1.0 リリース済み**（タグ `v0.1.0`）。core / CLI / MCP(stdio) / CI / 実利用（VS Code + Copilot）
+の全経路が繋がった。実利用でも安全パイプライン（.bak 生成・stale outputs 混入なし）を確認済み。
+ここからは機能拡張・運用改善フェーズ。
 
 ## 完成しているもの（検証済み）
 
@@ -20,19 +20,23 @@ core / CLI / MCP(stdio) の3経路すべてテスト済み（**27 passed**）。
 - `.github/workflows/ci.yml` — Python 3.10/3.11/3.12 で `uv sync` → `pytest`（push/PR トリガ）。
 - ドキュメント一式（README / CLAUDE.md / ADR 0001–0007 / CHANGELOG / 本ファイル）。
 
-## 次の一手（優先度順）
+## 次の一手（優先度順・任意）
 
-1. **実利用検証（VS Code + Copilot）**
-   `.vscode/mcp.json` に `--from git+https://github.com/tmlksu/nbedit-mcp nb-edit-mcp` を設定し、
-   実際に Copilot から `.ipynb` を編集させて挙動・description の効き具合を確認する。
-2. **タグ付け / リリース**
-   `v0.1.0` タグを打つ（CHANGELOG のリンクが有効化される）。
-3. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
+1. **社内 Git への配布**: 会社の Git に置き、`.vscode/mcp.json` を
+   `--from git+<社内URL> nb-edit-mcp` で各自設定する運用に乗せる。
+2. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
    新しい major に上げると消える。緊急ではない。
+3. **機能拡張の検討ネタ**（要望が出たら ADR とセットで）:
+   - patch の `replace_all` オプション（[ADR-0004](docs/adr/0004-patch-uniqueness.md)）
+   - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
+   - raw セル専用テストの追加
 
-## 済み（直近セッション）
+## 済み（〜v0.1.0）
 
-- CI 稼働確認: Python 3.10/3.11/3.12 すべて green（27 passed）。README に CI バッジ設置。
+- core / CLI / MCP(stdio) 実装、27 passed、CI green（3.10/3.11/3.12）。
+- 実利用検証: VS Code + Copilot(Agent) から `nb-edit-mcp` を叩き、`.ipynb` 編集に成功。
+  `.ipynb.bak` 生成・outputs 空維持を実データで確認。
+- `examples/` は `.gitkeep` のみ追跡、`*.ipynb` は gitignore（スクラッチ置き場）。
 
 ## 未決 / 検討メモ（着手前に判断が要るもの）
 
