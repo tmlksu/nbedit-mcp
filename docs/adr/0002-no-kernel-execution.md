@@ -1,0 +1,24 @@
+# 0002: カーネル実行をスコープ外にする
+
+- Status: Accepted
+- Date: 2026-07-01
+
+## Context
+
+既存 OSS（jupyter-mcp-server 等）はカーネル起動・セル実行まで抱えており、依存が重く素性も追いにくい。
+本ツールの主用途は Copilot / Azure Codex から呼ぶことで、実行機能は**呼び出し側に既にある**。
+
+## Decision
+
+スコープを構造編集のみに限定する。カーネル起動・セル実行・output 生成は**一切実装しない**。
+依存も実行系（jupyter_client, ipykernel 等）を持ち込まない。
+
+## Consequences
+
+- 依存が `nbformat` + `mcp` の最小構成で済み、会社利用の審査も軽い。
+- outputs は「既存のものを読むだけ」で、書き込みは行わない（[ADR-0003](0003-output-safety.md) に接続）。
+- 制約: 「編集して実行して結果を見る」ループは呼び出し側 AI が担う。ここに実行機能を足したくなったら本 ADR を Supersede すること。
+
+## Alternatives considered
+
+- **実行も内包してオールインワンにする**: 依存肥大・責務過多。主用途では冗長。却下。
