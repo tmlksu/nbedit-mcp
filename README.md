@@ -1,5 +1,7 @@
 # notebook-edit
 
+[![CI](https://github.com/tmlksu/nbedit-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/tmlksu/nbedit-mcp/actions/workflows/ci.yml)
+
 Jupyter notebook (`.ipynb`) の**構造編集**に特化した MCP サーバー兼 CLI。
 カーネル実行は行わない（実行は Copilot / Azure Codex 側の既存機能に任せる）。
 

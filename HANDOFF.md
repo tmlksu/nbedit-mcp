@@ -22,14 +22,17 @@ core / CLI / MCP(stdio) の3経路すべてテスト済み（**27 passed**）。
 
 ## 次の一手（優先度順）
 
-1. **CI が緑になるか確認**（push 後、Actions タブ）。初回失敗するなら uv キャッシュ or Python
-   セットアップ周りが原因のことが多い。
-2. **実利用検証（VS Code + Copilot）**
+1. **実利用検証（VS Code + Copilot）**
    `.vscode/mcp.json` に `--from git+https://github.com/tmlksu/nbedit-mcp nb-edit-mcp` を設定し、
    実際に Copilot から `.ipynb` を編集させて挙動・description の効き具合を確認する。
-3. **タグ付け / リリース**
+2. **タグ付け / リリース**
    `v0.1.0` タグを打つ（CHANGELOG のリンクが有効化される）。
-4. **README に CI バッジ**を貼る（Actions が緑になってから）。
+3. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
+   新しい major に上げると消える。緊急ではない。
+
+## 済み（直近セッション）
+
+- CI 稼働確認: Python 3.10/3.11/3.12 すべて green（27 passed）。README に CI バッジ設置。
 
 ## 未決 / 検討メモ（着手前に判断が要るもの）
 
