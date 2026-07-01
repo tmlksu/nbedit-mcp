@@ -71,7 +71,7 @@ async def test_insert_patch_read_roundtrip(notebook):
     cell = json.loads(_text(result))
     assert cell["type"] == "code"
     assert cell["source"] == "print('world')"
-    assert cell["outputs"] == []  # code cell edited -> outputs cleared
+    assert cell["outputs_text"] == ""  # code cell edited -> outputs cleared
 
 
 async def test_error_surfaces_as_tool_error(notebook):

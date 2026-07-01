@@ -5,7 +5,18 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- `list_cells` に `summary`（先頭 `#` コメント block、cap 3行/100字。無ければ1行プレビュー）と
+  `has_error`（コードセルの outputs にエラーがあるか）を追加。要約規約は ADR-0008。
+- `read_cell` にコードセル outputs の整形ビュー `outputs_text` / `has_error` / `output_types` を追加
+  （stream/結果連結、エラー強調、画像は `[image/png]`、2000字 truncate）。実行はしない。ADR-0009。
+- ADR 0008（要約規約）/ 0009（outputs 整形）。insert/edit の tool description に要約規約を明記。
+
+### Changed (breaking, pre-1.0)
+
+- `list_cells`: `source_preview`（1行）→ `summary`（複数行可）に置換。
+- `read_cell`: raw な `outputs` を廃し `outputs_text` / `has_error` / `output_types` に置換。
 
 ## [0.1.0] - 2026-07-02
 

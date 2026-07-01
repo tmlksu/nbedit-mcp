@@ -71,8 +71,8 @@ uv run nb-edit move-cell    foo.ipynb 0 3
 
 | ツール | 引数 | 説明 |
 |--------|------|------|
-| `list_cells` | `path` | 全セルの概要（プレビュー付き） |
-| `read_cell` | `path, index` | セルの全文（コードセルは outputs も） |
+| `list_cells` | `path` | 全セルの目次（`summary` + `has_error`） |
+| `read_cell` | `path, index` | セル全文＋出力の整形ビュー（`outputs_text`/`has_error`/`output_types`） |
 | `insert_cell` | `path, index, cell_type, source` | index の前に挿入 |
 | `edit_cell` | `path, index, source` | 全文置換 |
 | `patch_cell` | `path, index, old, new` | 一意な部分文字列を置換（**推奨**） |
@@ -82,6 +82,14 @@ uv run nb-edit move-cell    foo.ipynb 0 3
 `cell_type` は `code` / `markdown` / `raw`。
 `patch_cell` の `old` はセル内で**ちょうど1回**一致する必要がある
 （0回・複数回はエラー → 文脈を足して一意にする）。
+
+### 要約規約と出力の扱い
+
+- **要約**: コードセルの先頭に連続する `#` コメントを書くと、それが `list_cells` の `summary`
+  になる（最大 3 行 / 各 100 字）。一覧が目次として機能する。
+- **出力**: `read_cell` は既存の実行結果を整形して返す（`outputs_text`：stdout/結果を連結、
+  エラーは強調、画像は `[image/png]` プレースホルダ、2000 字で truncate）。
+  **セル実行はしない**——実行は Copilot / カーネル側に任せ、本ツールは保存済み outputs を読むだけ。
 
 ## テスト
 

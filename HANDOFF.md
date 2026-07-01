@@ -7,9 +7,15 @@
 
 ## 現在地（一言で）
 
-**v0.1.0 リリース済み**（タグ `v0.1.0`）。core / CLI / MCP(stdio) / CI / 実利用（VS Code + Copilot）
-の全経路が繋がった。実利用でも安全パイプライン（.bak 生成・stale outputs 混入なし）を確認済み。
-ここからは機能拡張・運用改善フェーズ。
+**v0.1.0 リリース済み**（タグ `v0.1.0`）。現在 **v0.2.0 をブランチ `feat/v0.2.0-summary-outputs`
+で作業中**（要約アウトライン + outputs 整形読み取り）。`main` は v0.1.0 のまま。
+
+### 作業中ブランチ `feat/v0.2.0-summary-outputs`（未マージ）
+
+- `list_cells`: `summary`（先頭 `#` コメント block）+ `has_error` を追加（`source_preview` は廃止）。
+- `read_cell`: outputs を整形（`outputs_text`/`has_error`/`output_types`、raw は返さない）。**実行はしない**。
+- ADR 0008/0009 追加。テスト 33 passed。push 済み、PR 未作成。
+- 次: PR 作成 → CI 緑確認 → main マージ → `v0.2.0` タグ。
 
 ## 完成しているもの（検証済み）
 

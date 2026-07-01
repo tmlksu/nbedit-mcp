@@ -44,6 +44,10 @@ notebook_edit/
 5. **エラーは `NotebookError` 階層で送出**（`CellIndexError` / `CellTypeError` / `PatchError`）。
    ラッパーはこれを捕捉して整形する（CLI→終了コード1+stderr、MCP→ToolError）（[ADR-0005](docs/adr/0005-custom-exceptions.md)）。
 6. **cell_type は `code` / `markdown` / `raw` のみ**。
+7. **`list_cells` は `summary`（先頭 `#` コメント block、cap 3行/100字）と `has_error` を返す**
+   （旧 `source_preview` は廃止）。要約規約は [ADR-0008](docs/adr/0008-summary-convention.md)。
+8. **`read_cell` は outputs を整形して返す**（`outputs_text`/`has_error`/`output_types`）。
+   raw な output 辞書は返さない。実行はしない（既存 outputs を読むだけ）（[ADR-0009](docs/adr/0009-output-rendering.md)）。
 
 ## 開発フロー
 

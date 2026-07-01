@@ -22,8 +22,12 @@ from nbformat import NotebookNode
 # Cell types we accept for creation / that Jupyter understands.
 _CELL_TYPES = ("code", "markdown", "raw")
 
-# Length of the single-line preview returned by list_cells.
-_PREVIEW_LEN = 80
+# Caps for the leading-comment summary returned by list_cells.
+_SUMMARY_MAX_LINES = 3
+_SUMMARY_LINE_LEN = 100
+
+# Cap for rendered output text returned by read_cell.
+_OUTPUT_TEXT_MAX = 2000
 
 _NBFORMAT_VERSION = 4
 
@@ -144,37 +148,121 @@ def _clear_outputs(cell: NotebookNode) -> None:
         cell["execution_count"] = None
 
 
+def _truncate(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit] + "…"
+
+
+def _summary(cell: NotebookNode) -> str:
+    """A short, capped summary of a cell for the outline.
+
+    For code cells this is the leading contiguous block of ``#`` comment lines
+    (the intended "header"); iteration stops at the first non-comment line
+    (blank lines included). A code cell without a leading comment falls back to
+    a single first-non-empty-line preview. Markdown/raw cells use their leading
+    non-empty lines.
+
+    Capped at ``_SUMMARY_MAX_LINES`` lines of ``_SUMMARY_LINE_LEN`` chars each.
+    """
+    lines = _source_str(cell).split("\n")
+    picked: list[str] = []
+
+    if cell.get("cell_type") == "code":
+        for line in lines:
+            if line.lstrip().startswith("#"):
+                picked.append(line.strip())
+            else:
+                break
+        if not picked:
+            # No header comment: one-line preview of the code.
+            first = next((ln.strip() for ln in lines if ln.strip()), "")
+            picked = [first] if first else []
+    else:
+        # markdown / raw: leading non-empty lines.
+        for line in lines:
+            if line.strip():
+                picked.append(line.strip())
+                if len(picked) >= _SUMMARY_MAX_LINES:
+                    break
+
+    picked = [_truncate(line, _SUMMARY_LINE_LEN) for line in picked[:_SUMMARY_MAX_LINES]]
+    return "\n".join(picked)
+
+
+def _render_outputs(cell: NotebookNode) -> dict[str, Any]:
+    """Render a code cell's outputs into an AI-friendly summary.
+
+    Returns ``{outputs_text, has_error, output_types}``. Raw output dicts (which
+    may carry large base64 image blobs) are never returned; images become a
+    ``[image/png]`` placeholder. Errors surface as ``ename: evalue`` plus the
+    traceback. The combined text is capped at ``_OUTPUT_TEXT_MAX`` chars.
+    """
+    parts: list[str] = []
+    types: list[str] = []
+    has_error = False
+
+    for out in cell.get("outputs", []):
+        otype = out.get("output_type")
+        types.append(otype)
+        if otype == "stream":
+            parts.append(out.get("text", ""))
+        elif otype in ("execute_result", "display_data"):
+            data = out.get("data", {})
+            if "text/plain" in data:
+                parts.append(data["text/plain"])
+            for mime in data:
+                if mime.startswith("image/"):
+                    parts.append(f"[{mime}]")
+        elif otype == "error":
+            has_error = True
+            ename = out.get("ename", "Error")
+            evalue = out.get("evalue", "")
+            tb = "\n".join(out.get("traceback", []))
+            parts.append(f"{ename}: {evalue}\n{tb}".rstrip())
+
+    text = "\n".join(p.rstrip("\n") for p in parts if p.strip())
+    return {
+        "outputs_text": _truncate(text, _OUTPUT_TEXT_MAX),
+        "has_error": has_error,
+        "output_types": types,
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Read-only functions (never write, never create a .bak)
 # --------------------------------------------------------------------------- #
 def list_cells(path: str | os.PathLike) -> list[dict[str, Any]]:
-    """Return a lightweight index of every cell.
+    """Return a lightweight index (outline) of every cell.
 
-    Each entry: ``{index, type, source_preview, num_lines, has_outputs}``.
-    ``source_preview`` is the first line, truncated to ~80 chars.
+    Each entry: ``{index, type, summary, num_lines, has_outputs, has_error}``.
+    ``summary`` is the leading ``#`` comment block (code) or leading non-empty
+    lines (markdown/raw), capped; see :func:`_summary`.
     """
     nb = _load(path)
     result = []
     for i, cell in enumerate(nb.cells):
         source = _source_str(cell)
-        first_line = source.split("\n", 1)[0]
-        preview = first_line[:_PREVIEW_LEN]
-        if len(first_line) > _PREVIEW_LEN:
-            preview += "…"
+        is_code = cell.get("cell_type") == "code"
         result.append(
             {
                 "index": i,
                 "type": cell.get("cell_type"),
-                "source_preview": preview,
+                "summary": _summary(cell),
                 "num_lines": source.count("\n") + 1 if source else 0,
                 "has_outputs": bool(cell.get("outputs")),
+                "has_error": is_code
+                and any(o.get("output_type") == "error" for o in cell.get("outputs", [])),
             }
         )
     return result
 
 
 def read_cell(path: str | os.PathLike, index: int) -> dict[str, Any]:
-    """Return the full source (and outputs, for code cells) of one cell."""
+    """Return the full source of one cell.
+
+    For code cells, adds ``execution_count`` and a rendered, AI-friendly view of
+    existing outputs (``outputs_text`` / ``has_error`` / ``output_types``); raw
+    output dicts are not returned (see :func:`_render_outputs`).
+    """
     nb = _load(path)
     _check_index(nb, index, action="read")
     cell = nb.cells[index]
@@ -185,7 +273,7 @@ def read_cell(path: str | os.PathLike, index: int) -> dict[str, Any]:
     }
     if cell.get("cell_type") == "code":
         out["execution_count"] = cell.get("execution_count")
-        out["outputs"] = cell.get("outputs", [])
+        out.update(_render_outputs(cell))
     return out
 
 

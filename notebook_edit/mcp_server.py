@@ -30,9 +30,11 @@ def _guard(fn, *args, **kwargs) -> Any:
 
 @mcp.tool()
 def list_cells(path: str) -> list[dict]:
-    """List every cell with a one-line source preview (cheap overview).
+    """List every cell as a compact outline (cheap overview).
 
-    Returns index, type, source_preview, num_lines, has_outputs for each cell.
+    Returns index, type, summary, num_lines, has_outputs, has_error per cell.
+    `summary` is the cell's leading `#` comment block (code) or leading lines
+    (markdown/raw); `has_error` flags code cells whose outputs contain an error.
     Cell indices are 0-based. Call this first to orient before editing.
     """
     return _guard(core.list_cells, path)
@@ -40,10 +42,13 @@ def list_cells(path: str) -> list[dict]:
 
 @mcp.tool()
 def read_cell(path: str, index: int) -> dict:
-    """Read one cell's full source (and outputs/execution_count for code cells).
+    """Read one cell's full source, plus a rendered view of any existing outputs.
 
-    Outputs are read-only: no tool writes them, and editing a code cell's source
-    clears its stale outputs.
+    For code cells returns execution_count, outputs_text (rendered stdout/results,
+    with errors and [image/*] placeholders), has_error, and output_types. This
+    tool never executes code; it only reads outputs already stored in the file
+    (run cells with the notebook's own kernel). Editing a code cell clears its
+    stale outputs.
     """
     return _guard(core.read_cell, path, index)
 
@@ -53,6 +58,8 @@ def insert_cell(path: str, index: int, cell_type: str, source: str) -> dict:
     """Insert a new cell BEFORE `index` (index == cell count appends).
 
     cell_type must be one of: code, markdown, raw. Indices are 0-based.
+    Convention: start a code cell with a short `#` comment summarizing it; that
+    leading comment becomes the cell's `summary` in list_cells.
     """
     return _guard(core.insert_cell, path, index, cell_type, source)
 
@@ -62,6 +69,8 @@ def edit_cell(path: str, index: int, source: str) -> dict:
     """Replace a cell's ENTIRE source. For small changes prefer patch_cell.
 
     Editing a code cell clears its outputs and execution_count (they are stale).
+    Convention: keep/add a leading `#` summary comment on code cells (it feeds
+    list_cells' `summary`).
     """
     return _guard(core.edit_cell, path, index, source)
 

@@ -43,31 +43,96 @@ def test_list_cells(nb_path):
     cells = core.list_cells(nb_path)
     assert [c["type"] for c in cells] == ["markdown", "code", "raw"]
     assert [c["index"] for c in cells] == [0, 1, 2]
-    assert cells[0]["source_preview"] == "# Title"
+    assert cells[0]["summary"] == "# Title\nintro"
     assert cells[0]["num_lines"] == 2
     assert cells[1]["has_outputs"] is True
     assert cells[0]["has_outputs"] is False
+    assert all(c["has_error"] is False for c in cells)
 
 
-def test_list_cells_preview_truncated(nb_path):
+def test_list_cells_summary_truncated(nb_path):
     core.edit_cell(nb_path, 0, "z" * 200)
-    preview = core.list_cells(nb_path)[0]["source_preview"]
-    assert preview.endswith("…")
-    assert len(preview) == 81  # 80 chars + ellipsis
+    summary = core.list_cells(nb_path)[0]["summary"]
+    assert summary.endswith("…")
+    assert len(summary) == 101  # 100 chars + ellipsis
 
 
-def test_read_cell_code_includes_outputs(nb_path):
+def test_summary_uses_leading_comment_block(nb_path):
+    core.edit_cell(nb_path, 1, "# step 1: load\n# step 2: transform\nx = 1")
+    assert core.list_cells(nb_path)[1]["summary"] == "# step 1: load\n# step 2: transform"
+
+
+def test_summary_caps_at_three_lines(nb_path):
+    core.edit_cell(nb_path, 1, "# a\n# b\n# c\n# d\n# e\nx = 1")
+    assert core.list_cells(nb_path)[1]["summary"] == "# a\n# b\n# c"
+
+
+def test_summary_falls_back_without_comment(nb_path):
+    core.edit_cell(nb_path, 1, "x = 1\ny = 2")
+    assert core.list_cells(nb_path)[1]["summary"] == "x = 1"
+
+
+def test_read_cell_renders_outputs(nb_path):
     cell = core.read_cell(nb_path, 1)
     assert cell["type"] == "code"
     assert cell["source"] == "x = 1\nprint(x)"
     assert cell["execution_count"] == 5
-    assert cell["outputs"] and cell["outputs"][0]["text"] == "1\n"
+    assert cell["outputs_text"] == "1"
+    assert cell["has_error"] is False
+    assert cell["output_types"] == ["stream"]
 
 
-def test_read_cell_markdown_has_no_outputs_key(nb_path):
+def test_read_cell_markdown_has_no_outputs_fields(nb_path):
     cell = core.read_cell(nb_path, 0)
-    assert "outputs" not in cell
+    assert "outputs_text" not in cell
+    assert "has_error" not in cell
     assert cell["source"] == "# Title\nintro"
+
+
+def _nb_with_error_cell(tmp_path):
+    nb = nbformat.v4.new_notebook()
+    code = nbformat.v4.new_code_cell("1 / 0")
+    code["outputs"] = [
+        nbformat.v4.new_output(
+            "error",
+            ename="ZeroDivisionError",
+            evalue="division by zero",
+            traceback=["Traceback...", "ZeroDivisionError: division by zero"],
+        )
+    ]
+    nb.cells = [code]
+    p = tmp_path / "err.ipynb"
+    with p.open("w") as f:
+        nbformat.write(nb, f)
+    return p
+
+
+def test_read_cell_renders_error(tmp_path):
+    p = _nb_with_error_cell(tmp_path)
+    cell = core.read_cell(p, 0)
+    assert cell["has_error"] is True
+    assert cell["output_types"] == ["error"]
+    assert "ZeroDivisionError: division by zero" in cell["outputs_text"]
+
+
+def test_list_cells_flags_error(tmp_path):
+    p = _nb_with_error_cell(tmp_path)
+    assert core.list_cells(p)[0]["has_error"] is True
+
+
+def test_read_cell_renders_image_placeholder(tmp_path):
+    nb = nbformat.v4.new_notebook()
+    code = nbformat.v4.new_code_cell("plot()")
+    code["outputs"] = [
+        nbformat.v4.new_output("display_data", data={"image/png": "BASE64…"}),
+    ]
+    nb.cells = [code]
+    p = tmp_path / "img.ipynb"
+    with p.open("w") as f:
+        nbformat.write(nb, f)
+    cell = core.read_cell(p, 0)
+    assert cell["outputs_text"] == "[image/png]"  # no base64 blob leaked
+    assert cell["has_error"] is False
 
 
 def test_read_does_not_create_backup(nb_path):
@@ -95,7 +160,8 @@ def test_edit_clears_code_outputs(nb_path):
     core.edit_cell(nb_path, 1, "y = 2")
     cell = core.read_cell(nb_path, 1)
     assert cell["source"] == "y = 2"
-    assert cell["outputs"] == []
+    assert cell["outputs_text"] == ""
+    assert cell["has_error"] is False
     assert cell["execution_count"] is None
 
 
@@ -111,7 +177,7 @@ def test_patch_unique(nb_path):
     }
     cell = core.read_cell(nb_path, 1)
     assert cell["source"] == "x = 99\nprint(x)"
-    assert cell["outputs"] == []  # cleared
+    assert cell["outputs_text"] == ""  # cleared
 
 
 def test_delete(nb_path):
@@ -129,7 +195,7 @@ def test_move_preserves_outputs(nb_path):
     cell = core.read_cell(nb_path, 0)
     assert cell["type"] == "code"
     assert cell["execution_count"] == 5  # move must NOT clear outputs
-    assert cell["outputs"]
+    assert cell["outputs_text"] == "1"
 
 
 # --------------------------------------------------------------------------- #

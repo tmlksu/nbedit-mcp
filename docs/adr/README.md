@@ -21,3 +21,5 @@
 | [0005](0005-custom-exceptions.md) | 独自の NotebookError 例外階層 | Accepted |
 | [0006](0006-atomic-write-and-backup.md) | atomic write + 1世代 .bak | Accepted |
 | [0007](0007-mcp-fastmcp-and-paths.md) | MCP は FastMCP、path はそのまま受ける | Accepted |
+| [0008](0008-summary-convention.md) | 先頭 `#` コメントによるセル要約の規約 | Accepted |
+| [0009](0009-output-rendering.md) | 読み取り時の outputs 整形（実行はしない） | Accepted |
