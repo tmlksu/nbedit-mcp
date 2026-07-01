@@ -8,30 +8,28 @@
 ## 現在地（一言で）
 
 v0.1.0 の骨格が完成し、GitHub（`git@github.com:tmlksu/nbedit-mcp.git`）の `main` に push 済み。
-core / CLI / MCP(stdio) の3経路すべて動作確認済み。次は「品質の作り込み」と「実利用での検証」フェーズ。
+core / CLI / MCP(stdio) の3経路すべてテスト済み（**27 passed**）。CI も整備済み。
+次は「実利用での検証」と「リリース」フェーズ。
 
 ## 完成しているもの（検証済み）
 
 - `notebook_edit/{core,cli,mcp_server,__init__}.py` — 7 機能すべて実装。
-- `tests/test_core.py` — `uv run pytest -q` で **24 passed**。
-- MCP stdio 結合確認 — MCP クライアントで `nb-edit-mcp` をサブプロセス起動し、
-  tool 列挙 / insert→patch→read→list / エラー時 `isError=True` を確認済み。
-  ※ ただしこの確認スクリプトは**リポジトリに未取り込み**（下記「次の一手」参照）。
+- `tests/test_core.py`（24 件）+ `tests/test_mcp_stdio.py`（3 件）— `uv run pytest -q` で **27 passed**。
+  stdio テストは `python -m notebook_edit.mcp_server` を実サブプロセス起動し、tool 列挙 /
+  insert→patch→read / エラー時 `isError` を検証。
+- `.github/workflows/ci.yml` — Python 3.10/3.11/3.12 で `uv sync` → `pytest`（push/PR トリガ）。
 - ドキュメント一式（README / CLAUDE.md / ADR 0001–0007 / CHANGELOG / 本ファイル）。
 
 ## 次の一手（優先度順）
 
-1. **stdio 結合テストを `tests/` に取り込む**
-   現状は単発スクリプトのみ。`mcp.client.stdio` を使い `nb-edit-mcp` を起動して
-   tool 呼び出しを検証する pytest（例: `tests/test_mcp_stdio.py`）にする。async テストなので
-   `pytest-asyncio` を dev 依存に追加する必要あり。
-2. **CI（GitHub Actions）**
-   `uv sync` → `uv run pytest` を push/PR で回す。public repo なので無料枠で十分。
-3. **実利用検証（VS Code + Copilot）**
+1. **CI が緑になるか確認**（push 後、Actions タブ）。初回失敗するなら uv キャッシュ or Python
+   セットアップ周りが原因のことが多い。
+2. **実利用検証（VS Code + Copilot）**
    `.vscode/mcp.json` に `--from git+https://github.com/tmlksu/nbedit-mcp nb-edit-mcp` を設定し、
    実際に Copilot から `.ipynb` を編集させて挙動・description の効き具合を確認する。
-4. **タグ付け / リリース**
+3. **タグ付け / リリース**
    `v0.1.0` タグを打つ（CHANGELOG のリンクが有効化される）。
+4. **README に CI バッジ**を貼る（Actions が緑になってから）。
 
 ## 未決 / 検討メモ（着手前に判断が要るもの）
 

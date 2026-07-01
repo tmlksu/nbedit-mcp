@@ -5,7 +5,12 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- MCP stdio 結合テスト `tests/test_mcp_stdio.py`: サーバーを実サブプロセスとして起動し、
+  tool 列挙・insert→patch→read のラウンドトリップ・エラー時 `isError` を検証（3 件）。
+- GitHub Actions CI `.github/workflows/ci.yml`: Python 3.10/3.11/3.12 で `uv sync` → `pytest`。
+- dev 依存 `pytest-asyncio`（async な stdio テスト用、`asyncio_mode = "auto"`）。
 
 ## [0.1.0] - 2026-07-01
 
