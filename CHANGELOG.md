@@ -5,7 +5,17 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- `read_cells(path, indices)`: 複数セルを1回で読み取る（要求順・重複可）。全 index を先に検証し、
+  不正があれば列挙して `CellIndexError`（部分成功なし）。ADR-0010。
+- `insert_cell` / `edit_cell` に optional `summary` 引数。`cell.metadata['summary']` に保存し、
+  `list_cells` の `summary` で **metadata > 先頭 `#` コメント > 先頭行** の優先で表示。ADR-0011。
+- ADR 0010（batch read）/ 0011（明示要約の metadata 保存、0008 の metadata 却下を修正）。
+
+### Changed (breaking, pre-1.0)
+
+- `read_cell`（単一）を廃し `read_cells`（複数）に一本化。単一読み取りは `[i]` を渡す。
 
 ## [0.2.0] - 2026-07-02
 

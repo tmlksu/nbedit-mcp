@@ -33,8 +33,8 @@ uv sync
 
 ```bash
 uv run nb-edit list-cells   foo.ipynb
-uv run nb-edit read-cell    foo.ipynb 2
-uv run nb-edit insert-cell  foo.ipynb 1 code "print('hi')"   # index の前に挿入
+uv run nb-edit read-cells   foo.ipynb 0 2 5                  # 複数 index を一括
+uv run nb-edit insert-cell  foo.ipynb 1 code "print('hi')" --summary "挨拶"  # index の前に挿入
 uv run nb-edit edit-cell    foo.ipynb 2 "x = 42"             # 全文置換
 uv run nb-edit patch-cell   foo.ipynb 2 "x = 42" "x = 99"    # 部分置換（推奨）
 uv run nb-edit delete-cell  foo.ipynb 2
@@ -75,9 +75,9 @@ Git から取得する場合は `--from` を Git URL に差し替える:
 | ツール | 引数 | 説明 |
 |--------|------|------|
 | `list_cells` | `path` | 全セルの目次（`summary` + `has_error`） |
-| `read_cell` | `path, index` | セル全文＋出力の整形ビュー（`outputs_text`/`has_error`/`output_types`） |
-| `insert_cell` | `path, index, cell_type, source` | index の前に挿入 |
-| `edit_cell` | `path, index, source` | 全文置換 |
+| `read_cells` | `path, indices` | 複数セルを一括読み取り（全文＋`outputs_text`/`has_error`/`output_types`） |
+| `insert_cell` | `path, index, cell_type, source, [summary]` | index の前に挿入 |
+| `edit_cell` | `path, index, source, [summary]` | 全文置換 |
 | `patch_cell` | `path, index, old, new` | 一意な部分文字列を置換（**推奨**） |
 | `delete_cell` | `path, index` | 削除 |
 | `move_cell` | `path, from_index, to_index` | 移動 |
@@ -88,8 +88,9 @@ Git から取得する場合は `--from` を Git URL に差し替える:
 
 ### 要約規約と出力の扱い
 
-- **要約**: コードセルの先頭に連続する `#` コメントを書くと、それが `list_cells` の `summary`
-  になる（最大 3 行 / 各 100 字）。一覧が目次として機能する。
+- **要約**: `list_cells` の `summary` は **metadata > 先頭 `#` コメント > 先頭行** の優先順位
+  （最大 3 行 / 各 100 字）。`insert_cell` / `edit_cell` の `summary` 引数で明示指定すると
+  `cell.metadata['summary']` に保存され、以降の一覧が確実に目次として機能する。
 - **出力**: `read_cell` は既存の実行結果を整形して返す（`outputs_text`：stdout/結果を連結、
   エラーは強調、画像は `[image/png]` プレースホルダ、2000 字で truncate）。
   **セル実行はしない**——実行はクライアント／カーネル側に任せ、本ツールは保存済み outputs を読むだけ。

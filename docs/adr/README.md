@@ -23,3 +23,5 @@
 | [0007](0007-mcp-fastmcp-and-paths.md) | MCP は FastMCP、path はそのまま受ける | Accepted |
 | [0008](0008-summary-convention.md) | 先頭 `#` コメントによるセル要約の規約 | Accepted |
 | [0009](0009-output-rendering.md) | 読み取り時の outputs 整形（実行はしない） | Accepted |
+| [0010](0010-batch-read.md) | 複数セルの一括読み取り（read_cells に一本化） | Accepted |
+| [0011](0011-explicit-summary-metadata.md) | 明示要約を cell metadata に保存（0008 の metadata 却下を修正） | Accepted |

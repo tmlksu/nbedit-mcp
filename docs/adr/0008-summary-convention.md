@@ -1,6 +1,6 @@
 # 0008: 先頭コメントによるセル要約の規約
 
-- Status: Accepted
+- Status: Accepted（metadata 却下の一点は [ADR-0011](0011-explicit-summary-metadata.md) で覆した。先頭コメント規約は存続）
 - Date: 2026-07-02
 
 ## Context

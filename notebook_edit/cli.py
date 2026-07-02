@@ -29,23 +29,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
     p.set_defaults(func=lambda a: core.list_cells(a.path))
 
-    p = sub.add_parser("read-cell", help="Read one cell's full source/outputs")
+    p = sub.add_parser("read-cells", help="Read one or more cells' source/outputs")
     p.add_argument("path")
-    p.add_argument("index", type=int)
-    p.set_defaults(func=lambda a: core.read_cell(a.path, a.index))
+    p.add_argument("indices", type=int, nargs="+", help="one or more 0-based indices")
+    p.set_defaults(func=lambda a: core.read_cells(a.path, a.indices))
 
     p = sub.add_parser("insert-cell", help="Insert a new cell before index")
     p.add_argument("path")
     p.add_argument("index", type=int)
     p.add_argument("cell_type", choices=core._CELL_TYPES)
     p.add_argument("source")
-    p.set_defaults(func=lambda a: core.insert_cell(a.path, a.index, a.cell_type, a.source))
+    p.add_argument("--summary", default=None, help="summary stored in cell metadata")
+    p.set_defaults(
+        func=lambda a: core.insert_cell(a.path, a.index, a.cell_type, a.source, a.summary)
+    )
 
     p = sub.add_parser("edit-cell", help="Replace a cell's entire source")
     p.add_argument("path")
     p.add_argument("index", type=int)
     p.add_argument("source")
-    p.set_defaults(func=lambda a: core.edit_cell(a.path, a.index, a.source))
+    p.add_argument("--summary", default=None, help="summary stored in cell metadata")
+    p.set_defaults(func=lambda a: core.edit_cell(a.path, a.index, a.source, a.summary))
 
     p = sub.add_parser("patch-cell", help="Replace a unique old substring with new")
     p.add_argument("path")

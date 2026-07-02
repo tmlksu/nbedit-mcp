@@ -152,17 +152,47 @@ def _truncate(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit] + "…"
 
 
+def _cap_lines(lines: list[str]) -> str:
+    """Strip, drop empties, cap line count/length, join."""
+    picked = [
+        _truncate(ln.strip(), _SUMMARY_LINE_LEN)
+        for ln in lines
+        if ln.strip()
+    ][:_SUMMARY_MAX_LINES]
+    return "\n".join(picked)
+
+
+def _set_summary(cell: NotebookNode, summary: str | None) -> None:
+    """Store an explicit summary in cell metadata (or clear it).
+
+    ``None`` leaves any existing summary untouched; a blank string removes it.
+    """
+    if summary is None:
+        return
+    summary = summary.strip()
+    if summary:
+        cell.metadata["summary"] = summary
+    else:
+        cell.metadata.pop("summary", None)
+
+
 def _summary(cell: NotebookNode) -> str:
     """A short, capped summary of a cell for the outline.
 
-    For code cells this is the leading contiguous block of ``#`` comment lines
-    (the intended "header"); iteration stops at the first non-comment line
-    (blank lines included). A code cell without a leading comment falls back to
-    a single first-non-empty-line preview. Markdown/raw cells use their leading
-    non-empty lines.
+    Precedence:
+    1. An explicit ``metadata['summary']`` set via insert/edit_cell.
+    2. For code cells, the leading contiguous block of ``#`` comment lines
+       (iteration stops at the first non-comment line, blank lines included);
+       a code cell without a leading comment falls back to a single
+       first-non-empty-line preview.
+    3. Markdown/raw cells use their leading non-empty lines.
 
     Capped at ``_SUMMARY_MAX_LINES`` lines of ``_SUMMARY_LINE_LEN`` chars each.
     """
+    explicit = cell.get("metadata", {}).get("summary")
+    if explicit and explicit.strip():
+        return _cap_lines(explicit.split("\n"))
+
     lines = _source_str(cell).split("\n")
     picked: list[str] = []
 
@@ -256,16 +286,8 @@ def list_cells(path: str | os.PathLike) -> list[dict[str, Any]]:
     return result
 
 
-def read_cell(path: str | os.PathLike, index: int) -> dict[str, Any]:
-    """Return the full source of one cell.
-
-    For code cells, adds ``execution_count`` and a rendered, AI-friendly view of
-    existing outputs (``outputs_text`` / ``has_error`` / ``output_types``); raw
-    output dicts are not returned (see :func:`_render_outputs`).
-    """
-    nb = _load(path)
-    _check_index(nb, index, action="read")
-    cell = nb.cells[index]
+def _cell_view(cell: NotebookNode, index: int) -> dict[str, Any]:
+    """Full read-view of one cell (source + rendered outputs for code cells)."""
     out: dict[str, Any] = {
         "index": index,
         "type": cell.get("cell_type"),
@@ -277,13 +299,47 @@ def read_cell(path: str | os.PathLike, index: int) -> dict[str, Any]:
     return out
 
 
+def read_cells(
+    path: str | os.PathLike, indices: list[int]
+) -> list[dict[str, Any]]:
+    """Read one or more cells in a single call, in the requested order.
+
+    Each result is the full view of a cell (source, plus rendered outputs for
+    code cells; see :func:`_cell_view`). All indices are validated up front:
+    if any is out of range or negative the whole call fails with a
+    ``CellIndexError`` listing the offenders (no silent partial results).
+    Duplicate indices are allowed and returned as given.
+    """
+    nb = _load(path)
+    n = len(nb.cells)
+    bad = [
+        i
+        for i in indices
+        if not isinstance(i, int) or isinstance(i, bool) or i < 0 or i >= n
+    ]
+    if bad:
+        raise CellIndexError(
+            f"Invalid cell index(es) {bad}: notebook has {n} cell(s) "
+            f"(valid 0..{n - 1})"
+        )
+    return [_cell_view(nb.cells[i], i) for i in indices]
+
+
 # --------------------------------------------------------------------------- #
 # Mutating functions (load -> mutate -> _save)
 # --------------------------------------------------------------------------- #
 def insert_cell(
-    path: str | os.PathLike, index: int, cell_type: str, source: str
+    path: str | os.PathLike,
+    index: int,
+    cell_type: str,
+    source: str,
+    summary: str | None = None,
 ) -> dict[str, Any]:
-    """Insert a new cell *before* ``index``. ``index == len`` appends."""
+    """Insert a new cell *before* ``index``. ``index == len`` appends.
+
+    ``summary`` (optional) is stored in the cell's metadata and takes precedence
+    in list_cells' outline.
+    """
     _check_type(cell_type)
     nb = _load(path)
     n = len(nb.cells)
@@ -293,18 +349,30 @@ def insert_cell(
         raise CellIndexError(
             f"Cannot insert at {index}: notebook has {n} cell(s) (valid 0..{n})"
         )
-    nb.cells.insert(index, _new_cell(cell_type, source))
+    cell = _new_cell(cell_type, source)
+    _set_summary(cell, summary)
+    nb.cells.insert(index, cell)
     _save(nb, path)
     return {"index": index}
 
 
-def edit_cell(path: str | os.PathLike, index: int, source: str) -> dict[str, Any]:
-    """Replace a cell's entire source. Clears outputs if it's a code cell."""
+def edit_cell(
+    path: str | os.PathLike,
+    index: int,
+    source: str,
+    summary: str | None = None,
+) -> dict[str, Any]:
+    """Replace a cell's entire source. Clears outputs if it's a code cell.
+
+    ``summary`` (optional): ``None`` keeps any existing summary, a string sets
+    it, a blank string clears it.
+    """
     nb = _load(path)
     _check_index(nb, index, action="edit")
     cell = nb.cells[index]
     cell["source"] = source
     _clear_outputs(cell)
+    _set_summary(cell, summary)
     _save(nb, path)
     return {"index": index}
 

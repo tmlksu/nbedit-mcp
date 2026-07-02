@@ -7,9 +7,15 @@
 
 ## 現在地（一言で）
 
-**v0.2.0 リリース済み**（タグ `v0.2.0`、`main`）。v0.1.0 の全経路に加え、要約アウトライン
-（`list_cells` の `summary` + `has_error`）と outputs 整形読み取り（`read_cell` の `outputs_text`
-/`has_error`/`output_types`）を追加。実行機能は入れていない（ADR-0002/0003 維持）。テスト 33 passed。
+**v0.2.0 リリース済み**（タグ `v0.2.0`、`main`）。現在 **v0.3.0 をブランチ
+`feat/v0.3.0-read-cells-summary` で作業中**。`main` は v0.2.0 のまま。
+
+### 作業中ブランチ `feat/v0.3.0-read-cells-summary`（未マージ）
+
+- `read_cell` → **`read_cells(path, indices)`** に一本化（複数セルを1往復で読む、strict 検証）。ADR-0010。
+- `insert_cell`/`edit_cell` に optional **`summary`** 引数 → `cell.metadata['summary']` 保存、
+  `list_cells` は metadata 優先で表示。ADR-0011（0008 の metadata 却下を修正）。
+- テスト 42 passed。ツールは 7 のまま。push 後: main マージ → `v0.3.0` タグ。
 
 ## 完成しているもの（検証済み）
 
@@ -27,6 +33,8 @@
 2. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
    新しい major に上げると消える。緊急ではない。
 3. **機能拡張の検討ネタ**（要望が出たら ADR とセットで）:
+   - `set_summary(path, index, summary)` ツール: source を変えず既存セルに要約を付与（[ADR-0011](docs/adr/0011-explicit-summary-metadata.md) の Alternatives）
+   - `read_cells` の範囲指定（"5-8"）（[ADR-0010](docs/adr/0010-batch-read.md)）
    - patch の `replace_all` オプション（[ADR-0004](docs/adr/0004-patch-uniqueness.md)）
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加

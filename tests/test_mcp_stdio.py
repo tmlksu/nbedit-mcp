@@ -51,7 +51,7 @@ async def test_lists_all_seven_tools():
 
     names = await _session(run)
     assert names == {
-        "list_cells", "read_cell", "insert_cell", "edit_cell",
+        "list_cells", "read_cells", "insert_cell", "edit_cell",
         "patch_cell", "delete_cell", "move_cell",
     }
 
@@ -65,10 +65,11 @@ async def test_insert_patch_read_roundtrip(notebook):
         await session.call_tool("patch_cell", {
             "path": notebook, "index": 1, "old": "hi", "new": "world",
         })
-        return await session.call_tool("read_cell", {"path": notebook, "index": 1})
+        return await session.call_tool("read_cells", {"path": notebook, "indices": [1]})
 
     result = await _session(run)
-    cell = json.loads(_text(result))
+    cells = [json.loads(c.text) for c in result.content if c.type == "text"]
+    cell = cells[0]
     assert cell["type"] == "code"
     assert cell["source"] == "print('world')"
     assert cell["outputs_text"] == ""  # code cell edited -> outputs cleared
@@ -76,7 +77,7 @@ async def test_insert_patch_read_roundtrip(notebook):
 
 async def test_error_surfaces_as_tool_error(notebook):
     async def run(session):
-        return await session.call_tool("read_cell", {"path": notebook, "index": 99})
+        return await session.call_tool("read_cells", {"path": notebook, "indices": [99]})
 
     result = await _session(run)
     assert result.isError is True
