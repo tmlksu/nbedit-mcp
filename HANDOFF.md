@@ -7,15 +7,9 @@
 
 ## 現在地（一言で）
 
-**v0.2.0 リリース済み**（タグ `v0.2.0`、`main`）。現在 **v0.3.0 をブランチ
-`feat/v0.3.0-read-cells-summary` で作業中**。`main` は v0.2.0 のまま。
-
-### 作業中ブランチ `feat/v0.3.0-read-cells-summary`（未マージ）
-
-- `read_cell` → **`read_cells(path, indices)`** に一本化（複数セルを1往復で読む、strict 検証）。ADR-0010。
-- `insert_cell`/`edit_cell` に optional **`summary`** 引数 → `cell.metadata['summary']` 保存、
-  `list_cells` は metadata 優先で表示。ADR-0011（0008 の metadata 却下を修正）。
-- テスト 42 passed。ツールは 7 のまま。push 後: main マージ → `v0.3.0` タグ。
+**v0.3.0 リリース済み**（タグ `v0.3.0`、`main`）。複数セルの一括読み取り
+（`read_cells(path, indices)`）と、明示要約（`insert_cell`/`edit_cell` の `summary` →
+`cell.metadata['summary']`、`list_cells` は metadata 優先）を追加。ツールは 7、テスト 42 passed。
 
 ## 完成しているもの（検証済み）
 
@@ -39,9 +33,10 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.2.0）
+## 済み（〜v0.3.0）
 
-- v0.2.0: 要約アウトライン + outputs 整形読み取り（ADR-0008/0009）、33 passed。
+- v0.3.0: 複数セル一括読み取り + 明示要約（metadata）（ADR-0010/0011）、42 passed。
+- v0.2.0: 要約アウトライン + outputs 整形読み取り（ADR-0008/0009）。
 - core / CLI / MCP(stdio) 実装、CI green（3.10/3.11/3.12）。
 - 実利用検証: MCP クライアント（AI エージェント）から `nb-edit-mcp` を叩き、`.ipynb` 編集に成功。
   `.ipynb.bak` 生成・outputs 空維持を実データで確認。

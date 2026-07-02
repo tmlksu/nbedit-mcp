@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+（次の変更をここに追記する）
+
+## [0.3.0] - 2026-07-02
+
+複数セルの一括読み取りと、明示的なセル要約（metadata 保存）。
+
 ### Added
 
 - `read_cells(path, indices)`: 複数セルを1回で読み取る（要求順・重複可）。全 index を先に検証し、
@@ -56,6 +62,7 @@
 - ドキュメント: README（CI バッジ付き）、CLAUDE.md、ADR 0001–0007、本 CHANGELOG、HANDOFF.md。
 - パッケージング: `pyproject.toml`（hatchling、2 エントリポイント、依存 `nbformat` + `mcp`）。
 
-[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tmlksu/nbedit-mcp/releases/tag/v0.1.0
