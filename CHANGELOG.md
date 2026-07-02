@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+（次の変更をここに追記する）
+
+## [0.4.0] - 2026-07-02
+
+大きい読み出し結果でコンテキストを圧迫しないためのサイズ上限。
+
 ### Added
 
 - `read_cells` のサイズ上限（ADR-0012）。各セルの `source` を 8000字窓に切り、
@@ -68,7 +74,8 @@
 - ドキュメント: README（CI バッジ付き）、CLAUDE.md、ADR 0001–0007、本 CHANGELOG、HANDOFF.md。
 - パッケージング: `pyproject.toml`（hatchling、2 エントリポイント、依存 `nbformat` + `mcp`）。
 
-[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tmlksu/nbedit-mcp/releases/tag/v0.1.0

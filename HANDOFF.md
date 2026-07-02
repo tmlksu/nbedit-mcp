@@ -7,14 +7,9 @@
 
 ## 現在地（一言で）
 
-**v0.3.0 リリース済み**（タグ `v0.3.0`、`main`）。現在 **v0.4.0 をブランチ
-`feat/v0.4.0-read-limits` で作業中**（大きい読み出しの cap + 総量バジェット + offset）。`main` は v0.3.0 のまま。
-
-### 作業中ブランチ `feat/v0.4.0-read-limits`（未マージ）
-
-- `read_cells` に **サイズ上限**: source 8000字窓（`offset` でページング）、レスポンス総量 20000字、
-  超過分は `content_omitted`。`read_cells(path, indices, offset=0)` に `offset` 追加。ADR-0012。
-- CLI `read-cells --offset`。テスト 47 passed。ツールは 7 のまま。push 後: main マージ → `v0.4.0` タグ。
+**v0.4.0 リリース済み**（タグ `v0.4.0`、`main`）。`read_cells` にサイズ上限を導入
+（source 8000字窓＋`offset` ページング、レスポンス総量 20000字、超過分は `content_omitted`）。
+巨大セル・大量バッチでもコンテキストを暴走させない。ツールは 7、テスト 47 passed。
 
 ## 完成しているもの（検証済み）
 
@@ -39,9 +34,10 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.3.0）
+## 済み（〜v0.4.0）
 
-- v0.3.0: 複数セル一括読み取り + 明示要約（metadata）（ADR-0010/0011）、42 passed。
+- v0.4.0: read_cells のサイズ上限（source 窓 + 総量バジェット + offset）（ADR-0012）、47 passed。
+- v0.3.0: 複数セル一括読み取り + 明示要約（metadata）（ADR-0010/0011）。
 - v0.2.0: 要約アウトライン + outputs 整形読み取り（ADR-0008/0009）。
 - core / CLI / MCP(stdio) 実装、CI green（3.10/3.11/3.12）。
 - 実利用検証: MCP クライアント（AI エージェント）から `nb-edit-mcp` を叩き、`.ipynb` 編集に成功。
