@@ -7,9 +7,14 @@
 
 ## 現在地（一言で）
 
-**v0.3.0 リリース済み**（タグ `v0.3.0`、`main`）。複数セルの一括読み取り
-（`read_cells(path, indices)`）と、明示要約（`insert_cell`/`edit_cell` の `summary` →
-`cell.metadata['summary']`、`list_cells` は metadata 優先）を追加。ツールは 7、テスト 42 passed。
+**v0.3.0 リリース済み**（タグ `v0.3.0`、`main`）。現在 **v0.4.0 をブランチ
+`feat/v0.4.0-read-limits` で作業中**（大きい読み出しの cap + 総量バジェット + offset）。`main` は v0.3.0 のまま。
+
+### 作業中ブランチ `feat/v0.4.0-read-limits`（未マージ）
+
+- `read_cells` に **サイズ上限**: source 8000字窓（`offset` でページング）、レスポンス総量 20000字、
+  超過分は `content_omitted`。`read_cells(path, indices, offset=0)` に `offset` 追加。ADR-0012。
+- CLI `read-cells --offset`。テスト 47 passed。ツールは 7 のまま。push 後: main マージ → `v0.4.0` タグ。
 
 ## 完成しているもの（検証済み）
 
@@ -27,6 +32,7 @@
 2. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
    新しい major に上げると消える。緊急ではない。
 3. **機能拡張の検討ネタ**（要望が出たら ADR とセットで）:
+   - `read_cells` の projection 引数（`max_chars`/`include_outputs`）で呼び出し側が verbosity 制御（[ADR-0012](docs/adr/0012-large-read-limits.md) が deferred）
    - `set_summary(path, index, summary)` ツール: source を変えず既存セルに要約を付与（[ADR-0011](docs/adr/0011-explicit-summary-metadata.md) の Alternatives）
    - `read_cells` の範囲指定（"5-8"）（[ADR-0010](docs/adr/0010-batch-read.md)）
    - patch の `replace_all` オプション（[ADR-0004](docs/adr/0004-patch-uniqueness.md)）

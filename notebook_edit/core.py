@@ -26,8 +26,16 @@ _CELL_TYPES = ("code", "markdown", "raw")
 _SUMMARY_MAX_LINES = 3
 _SUMMARY_LINE_LEN = 100
 
-# Cap for rendered output text returned by read_cell.
+# Cap for rendered output text returned per cell by read_cells.
 _OUTPUT_TEXT_MAX = 2000
+
+# Per-cell source window (chars) returned by read_cells; page past it with offset.
+_SOURCE_WINDOW = 8000
+
+# Total source+outputs budget (chars) for a single read_cells response. Cells
+# beyond it are returned as content_omitted. Kept > _SOURCE_WINDOW + _OUTPUT_TEXT_MAX
+# so the first requested cell always fits.
+_READ_BUDGET = 20000
 
 _NBFORMAT_VERSION = 4
 
@@ -286,13 +294,26 @@ def list_cells(path: str | os.PathLike) -> list[dict[str, Any]]:
     return result
 
 
-def _cell_view(cell: NotebookNode, index: int) -> dict[str, Any]:
-    """Full read-view of one cell (source + rendered outputs for code cells)."""
+def _cell_view(cell: NotebookNode, index: int, offset: int = 0) -> dict[str, Any]:
+    """Read-view of one cell.
+
+    ``source`` is windowed to ``[offset, offset + _SOURCE_WINDOW)``. When the
+    window does not cover the whole source (or ``offset > 0``), the extra keys
+    ``source_offset`` / ``source_length`` / ``source_truncated`` are added so the
+    caller can page with ``offset``; small cells stay clean. Code cells also get
+    ``execution_count`` and rendered outputs.
+    """
+    full = _source_str(cell)
+    window = full[offset : offset + _SOURCE_WINDOW]
     out: dict[str, Any] = {
         "index": index,
         "type": cell.get("cell_type"),
-        "source": _source_str(cell),
+        "source": window,
     }
+    if offset > 0 or len(window) < len(full):
+        out["source_offset"] = offset
+        out["source_length"] = len(full)
+        out["source_truncated"] = True
     if cell.get("cell_type") == "code":
         out["execution_count"] = cell.get("execution_count")
         out.update(_render_outputs(cell))
@@ -300,16 +321,23 @@ def _cell_view(cell: NotebookNode, index: int) -> dict[str, Any]:
 
 
 def read_cells(
-    path: str | os.PathLike, indices: list[int]
+    path: str | os.PathLike, indices: list[int], offset: int = 0
 ) -> list[dict[str, Any]]:
     """Read one or more cells in a single call, in the requested order.
 
-    Each result is the full view of a cell (source, plus rendered outputs for
-    code cells; see :func:`_cell_view`). All indices are validated up front:
-    if any is out of range or negative the whole call fails with a
-    ``CellIndexError`` listing the offenders (no silent partial results).
-    Duplicate indices are allowed and returned as given.
+    Each result is a view of a cell (source windowed to ``_SOURCE_WINDOW`` chars
+    starting at ``offset``, plus rendered outputs for code cells). All indices
+    are validated up front: if any is out of range or negative the whole call
+    fails with a ``CellIndexError`` listing the offenders. Duplicate indices are
+    allowed and returned as given.
+
+    The combined source+outputs size of the response is capped at ``_READ_BUDGET``
+    chars: once reached, remaining cells are returned as ``{index, type,
+    source_length, content_omitted: True}`` (read them in a smaller batch or page
+    with ``offset``). Use ``offset`` to page through a cell larger than the window.
     """
+    if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+        raise CellIndexError(f"offset must be a non-negative int, got {offset!r}")
     nb = _load(path)
     n = len(nb.cells)
     bad = [
@@ -322,7 +350,35 @@ def read_cells(
             f"Invalid cell index(es) {bad}: notebook has {n} cell(s) "
             f"(valid 0..{n - 1})"
         )
-    return [_cell_view(nb.cells[i], i) for i in indices]
+
+    result: list[dict[str, Any]] = []
+    used = 0
+    omitting = False
+    for i in indices:
+        cell = nb.cells[i]
+        if omitting:
+            result.append(_omitted_view(cell, i))
+            continue
+        view = _cell_view(cell, i, offset)
+        cost = len(view["source"]) + len(view.get("outputs_text", ""))
+        # Always include the first emitted cell; omit once the budget is hit.
+        if result and used + cost > _READ_BUDGET:
+            omitting = True
+            result.append(_omitted_view(cell, i))
+            continue
+        used += cost
+        result.append(view)
+    return result
+
+
+def _omitted_view(cell: NotebookNode, index: int) -> dict[str, Any]:
+    """Placeholder for a cell dropped from a read_cells response for size."""
+    return {
+        "index": index,
+        "type": cell.get("cell_type"),
+        "source_length": len(_source_str(cell)),
+        "content_omitted": True,
+    }
 
 
 # --------------------------------------------------------------------------- #

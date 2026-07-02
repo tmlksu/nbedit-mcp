@@ -160,6 +160,55 @@ def test_read_cells_strict_lists_bad_indices(nb_path):
     assert "99" in msg and "-1" in msg  # both offenders reported
 
 
+def test_read_cells_small_source_has_no_window_fields(nb_path):
+    cell = core.read_cells(nb_path, [0])[0]
+    assert cell["source"] == "# Title\nintro"
+    assert "source_truncated" not in cell  # small cell stays clean
+
+
+def test_read_cells_windows_large_source(nb_path):
+    big = "x" * (core._SOURCE_WINDOW + 500)
+    core.edit_cell(nb_path, 1, big)
+    cell = core.read_cells(nb_path, [1])[0]
+    assert len(cell["source"]) == core._SOURCE_WINDOW
+    assert cell["source_truncated"] is True
+    assert cell["source_length"] == core._SOURCE_WINDOW + 500
+    assert cell["source_offset"] == 0
+
+
+def test_read_cells_offset_pages_source(nb_path):
+    src = "A" * core._SOURCE_WINDOW + "B" * 500
+    core.edit_cell(nb_path, 1, src)
+    tail = core.read_cells(nb_path, [1], offset=core._SOURCE_WINDOW)[0]
+    assert tail["source"] == "B" * 500
+    assert tail["source_offset"] == core._SOURCE_WINDOW
+    assert tail["source_truncated"] is True  # offset > 0
+
+
+def test_read_cells_rejects_negative_offset(nb_path):
+    with pytest.raises(CellIndexError):
+        core.read_cells(nb_path, [0], offset=-1)
+
+
+def test_read_cells_budget_omits_trailing_cells(tmp_path):
+    nb = nbformat.v4.new_notebook()
+    # Each cell ~ the window size; a few of them blow past the total budget.
+    nb.cells = [nbformat.v4.new_code_cell("y" * core._SOURCE_WINDOW) for _ in range(6)]
+    p = tmp_path / "big.ipynb"
+    with p.open("w") as f:
+        nbformat.write(nb, f)
+
+    cells = core.read_cells(p, list(range(6)))
+    included = [c for c in cells if not c.get("content_omitted")]
+    omitted = [c for c in cells if c.get("content_omitted")]
+    assert len(cells) == 6  # every requested index accounted for
+    assert included and omitted  # some fit, the rest are omitted
+    # Budget respected by the included cells.
+    assert sum(len(c["source"]) for c in included) <= core._READ_BUDGET
+    # Omitted entries still report their real length so the caller can re-read.
+    assert all(c["source_length"] == core._SOURCE_WINDOW for c in omitted)
+
+
 # --------------------------------------------------------------------------- #
 # Explicit summary (cell metadata)
 # --------------------------------------------------------------------------- #

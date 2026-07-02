@@ -47,8 +47,10 @@ notebook_edit/
 7. **`list_cells` の `summary` の優先順位は metadata > 先頭 `#` コメント > 先頭行**（cap 3行/100字）、
    と `has_error` を返す（旧 `source_preview` は廃止）。要約規約は
    [ADR-0008](docs/adr/0008-summary-convention.md) + [ADR-0011](docs/adr/0011-explicit-summary-metadata.md)。
-8. **読み取りは `read_cells(path, indices)` に一本化**（単一は `[i]`）。全 index を先に検証し、
+8. **読み取りは `read_cells(path, indices, offset=0)` に一本化**（単一は `[i]`）。全 index を先に検証し、
    不正があれば列挙して `CellIndexError`（部分成功なし）（[ADR-0010](docs/adr/0010-batch-read.md)）。
+   結果は cap 済み: source は 8000字窓（`offset` でページング）、レスポンス総量 20000字で以降は
+   `content_omitted`。切り詰めは必ずマーカー付きで返す（[ADR-0012](docs/adr/0012-large-read-limits.md)）。
 9. **outputs は整形して返す**（`outputs_text`/`has_error`/`output_types`）。raw な output 辞書は返さない。
    実行はしない（既存 outputs を読むだけ）（[ADR-0009](docs/adr/0009-output-rendering.md)）。
 10. **`insert_cell`/`edit_cell` の optional `summary` は `cell.metadata['summary']` に保存**

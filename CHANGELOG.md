@@ -5,7 +5,13 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- `read_cells` のサイズ上限（ADR-0012）。各セルの `source` を 8000字窓に切り、
+  `source_offset`/`source_length`/`source_truncated` を付与。`offset` 引数でページング可能。
+- `read_cells` のレスポンス総量バジェット 20000字。超過分は
+  `{index, type, source_length, content_omitted: true}` として返す。
+- CLI `read-cells` に `--offset`。ADR-0012。
 
 ## [0.3.0] - 2026-07-02
 

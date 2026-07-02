@@ -32,7 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("read-cells", help="Read one or more cells' source/outputs")
     p.add_argument("path")
     p.add_argument("indices", type=int, nargs="+", help="one or more 0-based indices")
-    p.set_defaults(func=lambda a: core.read_cells(a.path, a.indices))
+    p.add_argument("--offset", type=int, default=0, help="start source window at this char offset")
+    p.set_defaults(func=lambda a: core.read_cells(a.path, a.indices, a.offset))
 
     p = sub.add_parser("insert-cell", help="Insert a new cell before index")
     p.add_argument("path")

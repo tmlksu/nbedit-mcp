@@ -41,17 +41,22 @@ def list_cells(path: str) -> list[dict]:
 
 
 @mcp.tool()
-def read_cells(path: str, indices: list[int]) -> list[dict]:
+def read_cells(path: str, indices: list[int], offset: int = 0) -> list[dict]:
     """Read one or more cells at once (pass a list of 0-based indices).
 
     Prefer a single call with several indices over many single reads. Returns,
-    per cell, its full source plus (for code cells) execution_count, outputs_text
+    per cell, its source plus (for code cells) execution_count, outputs_text
     (rendered stdout/results, with errors and [image/*] placeholders), has_error,
     and output_types. All indices are validated first: if any is invalid the
-    whole call errors. This tool never executes code; it only reads outputs
-    already stored in the file. Editing a code cell clears its stale outputs.
+    whole call errors. Never executes code; only reads stored outputs.
+
+    Large results are bounded: each cell's source is windowed (~8000 chars) and
+    the response total is capped (~20000 chars). A windowed cell carries
+    source_truncated/source_length/source_offset — page it by re-reading that
+    index with a larger `offset`. Cells past the total budget come back as
+    {index, type, source_length, content_omitted: true}; read them separately.
     """
-    return _guard(core.read_cells, path, indices)
+    return _guard(core.read_cells, path, indices, offset)
 
 
 @mcp.tool()
