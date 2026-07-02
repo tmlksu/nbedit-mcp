@@ -7,14 +7,9 @@
 
 ## 現在地（一言で）
 
-**v0.4.0 リリース済み**（タグ `v0.4.0`、`main`）。現在 **v0.5.0 をブランチ
-`feat/v0.5.0-insert-cells` で作業中**（複数セルの一括挿入）。`main` は v0.4.0 のまま。
-
-### 作業中ブランチ `feat/v0.5.0-insert-cells`（未マージ）
-
-- `insert_cells(path, index, cells)` 追加（atomic + 前検証 + 名指しエラー）。`insert_cell` は残す。
-  ADR-0013。CLI `insert-cells --json`。ツールは **8** に。テスト 52 passed。
-- push 後: main マージ → `v0.5.0` タグ。
+**v0.5.0 リリース済み**（タグ `v0.5.0`、`main`）。複数セルの一括挿入
+`insert_cells(path, index, cells)`（atomic + 前検証 + 名指しエラー）を追加、`insert_cell` は残置。
+ツールは **8**、テスト 52 passed。
 
 ## 完成しているもの（検証済み）
 
@@ -40,9 +35,10 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.4.0）
+## 済み（〜v0.5.0）
 
-- v0.4.0: read_cells のサイズ上限（source 窓 + 総量バジェット + offset）（ADR-0012）、47 passed。
+- v0.5.0: 複数セル一括挿入 insert_cells（atomic）（ADR-0013）、52 passed。
+- v0.4.0: read_cells のサイズ上限（source 窓 + 総量バジェット + offset）（ADR-0012）。
 - v0.3.0: 複数セル一括読み取り + 明示要約（metadata）（ADR-0010/0011）。
 - v0.2.0: 要約アウトライン + outputs 整形読み取り（ADR-0008/0009）。
 - core / CLI / MCP(stdio) 実装、CI green（3.10/3.11/3.12）。

@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+（次の変更をここに追記する）
+
+## [0.5.0] - 2026-07-02
+
+複数セルの一括挿入（連続 insert_cell の round-trip を削減）。
+
 ### Added
 
 - `insert_cells(path, index, cells)`: 複数セルを `index` の前に連続挿入（1往復・index ズレ管理不要）。
@@ -79,7 +85,8 @@
 - ドキュメント: README（CI バッジ付き）、CLAUDE.md、ADR 0001–0007、本 CHANGELOG、HANDOFF.md。
 - パッケージング: `pyproject.toml`（hatchling、2 エントリポイント、依存 `nbformat` + `mcp`）。
 
-[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tmlksu/nbedit-mcp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tmlksu/nbedit-mcp/compare/v0.1.0...v0.2.0
