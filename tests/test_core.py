@@ -263,6 +263,64 @@ def test_insert_append_at_len(nb_path):
     assert core.read_cells(nb_path, [3])[0]["source"] == "end = True"
 
 
+# --------------------------------------------------------------------------- #
+# Batch insert
+# --------------------------------------------------------------------------- #
+def test_insert_cells_contiguous_in_order(nb_path):
+    result = core.insert_cells(
+        nb_path,
+        1,
+        [
+            {"cell_type": "markdown", "source": "## 前処理"},
+            {"cell_type": "code", "source": "import pandas"},
+            {"cell_type": "code", "source": "df = load()", "summary": "読込"},
+        ],
+    )
+    assert result == {"indices": [1, 2, 3]}
+    cells = core.list_cells(nb_path)
+    assert [c["type"] for c in cells[1:4]] == ["markdown", "code", "code"]
+    assert cells[3]["summary"] == "読込"  # per-item summary applied
+    # original cells pushed down, not lost
+    assert [c["type"] for c in cells] == [
+        "markdown", "markdown", "code", "code", "code", "raw"
+    ]
+
+
+def test_insert_cells_append_at_len(nb_path):
+    r = core.insert_cells(nb_path, 3, [{"cell_type": "code", "source": "z = 1"}])
+    assert r == {"indices": [3]}
+    assert core.read_cells(nb_path, [3])[0]["source"] == "z = 1"
+
+
+def test_insert_cells_empty_is_noop(nb_path):
+    before = core.list_cells(nb_path)
+    assert core.insert_cells(nb_path, 1, []) == {"indices": []}
+    assert core.list_cells(nb_path) == before
+    assert not (nb_path.parent / (nb_path.name + ".bak")).exists()  # no write
+
+
+def test_insert_cells_atomic_on_bad_item(nb_path):
+    before = nb_path.read_bytes()
+    with pytest.raises(CellTypeError) as exc:
+        core.insert_cells(
+            nb_path,
+            1,
+            [
+                {"cell_type": "code", "source": "ok"},
+                {"cell_type": "python", "source": "bad type"},  # invalid
+            ],
+        )
+    assert "item 1" in str(exc.value)  # offender named
+    assert nb_path.read_bytes() == before  # nothing written
+
+
+def test_insert_cells_bad_index_writes_nothing(nb_path):
+    before = nb_path.read_bytes()
+    with pytest.raises(CellIndexError):
+        core.insert_cells(nb_path, 99, [{"cell_type": "code", "source": "x"}])
+    assert nb_path.read_bytes() == before
+
+
 def test_edit_clears_code_outputs(nb_path):
     core.edit_cell(nb_path, 1, "y = 2")
     cell = core.read_cells(nb_path, [1])[0]

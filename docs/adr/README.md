@@ -26,3 +26,4 @@
 | [0010](0010-batch-read.md) | 複数セルの一括読み取り（read_cells に一本化） | Accepted |
 | [0011](0011-explicit-summary-metadata.md) | 明示要約を cell metadata に保存（0008 の metadata 却下を修正） | Accepted |
 | [0012](0012-large-read-limits.md) | 大きい読み出しの cap + 総量バジェット + offset ページング | Accepted |
+| [0013](0013-batch-insert.md) | 複数セルの一括挿入 insert_cells（単発 insert_cell は残す） | Accepted |

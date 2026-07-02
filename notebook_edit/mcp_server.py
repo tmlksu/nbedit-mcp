@@ -74,6 +74,20 @@ def insert_cell(
 
 
 @mcp.tool()
+def insert_cells(path: str, index: int, cells: list[dict]) -> dict:
+    """Insert several cells at once, contiguously BEFORE `index` (0-based).
+
+    Prefer this over many insert_cell calls when adding a block of cells: one
+    round-trip, no index bookkeeping between inserts. `cells` is a list of
+    objects {cell_type, source, summary?} inserted in order (index == cell count
+    appends). The batch is atomic: all items are validated first, and if any is
+    invalid nothing is written and the offending items are named — fix those and
+    resend. Returns {"indices": [...]} where the new cells landed.
+    """
+    return _guard(core.insert_cells, path, index, cells)
+
+
+@mcp.tool()
 def edit_cell(
     path: str, index: int, source: str, summary: str | None = None
 ) -> dict:

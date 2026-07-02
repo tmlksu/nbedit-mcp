@@ -55,6 +55,8 @@ notebook_edit/
    実行はしない（既存 outputs を読むだけ）（[ADR-0009](docs/adr/0009-output-rendering.md)）。
 10. **`insert_cell`/`edit_cell` の optional `summary` は `cell.metadata['summary']` に保存**
     （[ADR-0011](docs/adr/0011-explicit-summary-metadata.md)）。
+11. **一括挿入 `insert_cells(path, index, cells)` は atomic**（全 item 前検証→1回で書く）。
+    単発 `insert_cell` は残す（write は低リスク版を保持）（[ADR-0013](docs/adr/0013-batch-insert.md)）。
 
 ## 開発フロー
 

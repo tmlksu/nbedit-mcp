@@ -51,7 +51,7 @@ async def test_lists_all_seven_tools():
 
     names = await _session(run)
     assert names == {
-        "list_cells", "read_cells", "insert_cell", "edit_cell",
+        "list_cells", "read_cells", "insert_cell", "insert_cells", "edit_cell",
         "patch_cell", "delete_cell", "move_cell",
     }
 

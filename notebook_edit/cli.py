@@ -45,6 +45,17 @@ def build_parser() -> argparse.ArgumentParser:
         func=lambda a: core.insert_cell(a.path, a.index, a.cell_type, a.source, a.summary)
     )
 
+    p = sub.add_parser("insert-cells", help="Insert several cells (JSON array) before index")
+    p.add_argument("path")
+    p.add_argument("index", type=int)
+    p.add_argument(
+        "--json",
+        required=True,
+        dest="cells_json",
+        help='JSON array of {cell_type, source, summary?}',
+    )
+    p.set_defaults(func=lambda a: core.insert_cells(a.path, a.index, json.loads(a.cells_json)))
+
     p = sub.add_parser("edit-cell", help="Replace a cell's entire source")
     p.add_argument("path")
     p.add_argument("index", type=int)

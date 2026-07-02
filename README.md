@@ -34,7 +34,8 @@ uv sync
 ```bash
 uv run nb-edit list-cells   foo.ipynb
 uv run nb-edit read-cells   foo.ipynb 0 2 5                  # 複数 index を一括
-uv run nb-edit insert-cell  foo.ipynb 1 code "print('hi')" --summary "挨拶"  # index の前に挿入
+uv run nb-edit insert-cell  foo.ipynb 1 code "print('hi')" --summary "挨拶"  # 1セル挿入
+uv run nb-edit insert-cells foo.ipynb 1 --json '[{"cell_type":"code","source":"import os"}]'  # 一括
 uv run nb-edit edit-cell    foo.ipynb 2 "x = 42"             # 全文置換
 uv run nb-edit patch-cell   foo.ipynb 2 "x = 42" "x = 99"    # 部分置換（推奨）
 uv run nb-edit delete-cell  foo.ipynb 2
@@ -76,7 +77,8 @@ Git から取得する場合は `--from` を Git URL に差し替える:
 |--------|------|------|
 | `list_cells` | `path` | 全セルの目次（`summary` + `has_error`） |
 | `read_cells` | `path, indices, [offset]` | 複数セルを一括読み取り（source 窓＋`outputs_text`/`has_error`/`output_types`） |
-| `insert_cell` | `path, index, cell_type, source, [summary]` | index の前に挿入 |
+| `insert_cell` | `path, index, cell_type, source, [summary]` | index の前に1セル挿入 |
+| `insert_cells` | `path, index, cells` | 複数セルを index の前に一括挿入（atomic） |
 | `edit_cell` | `path, index, source, [summary]` | 全文置換 |
 | `patch_cell` | `path, index, old, new` | 一意な部分文字列を置換（**推奨**） |
 | `delete_cell` | `path, index` | 削除 |

@@ -7,9 +7,14 @@
 
 ## 現在地（一言で）
 
-**v0.4.0 リリース済み**（タグ `v0.4.0`、`main`）。`read_cells` にサイズ上限を導入
-（source 8000字窓＋`offset` ページング、レスポンス総量 20000字、超過分は `content_omitted`）。
-巨大セル・大量バッチでもコンテキストを暴走させない。ツールは 7、テスト 47 passed。
+**v0.4.0 リリース済み**（タグ `v0.4.0`、`main`）。現在 **v0.5.0 をブランチ
+`feat/v0.5.0-insert-cells` で作業中**（複数セルの一括挿入）。`main` は v0.4.0 のまま。
+
+### 作業中ブランチ `feat/v0.5.0-insert-cells`（未マージ）
+
+- `insert_cells(path, index, cells)` 追加（atomic + 前検証 + 名指しエラー）。`insert_cell` は残す。
+  ADR-0013。CLI `insert-cells --json`。ツールは **8** に。テスト 52 passed。
+- push 後: main マージ → `v0.5.0` タグ。
 
 ## 完成しているもの（検証済み）
 
@@ -27,6 +32,7 @@
 2. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
    新しい major に上げると消える。緊急ではない。
 3. **機能拡張の検討ネタ**（要望が出たら ADR とセットで）:
+   - `delete_cells` / `edit_cells` など他の一括 write（[ADR-0013](docs/adr/0013-batch-insert.md) の型を横展開）
    - `read_cells` の projection 引数（`max_chars`/`include_outputs`）で呼び出し側が verbosity 制御（[ADR-0012](docs/adr/0012-large-read-limits.md) が deferred）
    - `set_summary(path, index, summary)` ツール: source を変えず既存セルに要約を付与（[ADR-0011](docs/adr/0011-explicit-summary-metadata.md) の Alternatives）
    - `read_cells` の範囲指定（"5-8"）（[ADR-0010](docs/adr/0010-batch-read.md)）

@@ -5,7 +5,12 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- `insert_cells(path, index, cells)`: 複数セルを `index` の前に連続挿入（1往復・index ズレ管理不要）。
+  `cells` は `{cell_type, source, summary?}` のリスト。atomic（全 item 前検証、不正なら該当を名指しして
+  無変更）。戻り値 `{"indices": [...]}`。単発 `insert_cell` は残す。ADR-0013。
+- CLI `insert-cells path index --json '[...]'`。
 
 ## [0.4.0] - 2026-07-02
 

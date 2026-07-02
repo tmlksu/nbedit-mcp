@@ -412,6 +412,59 @@ def insert_cell(
     return {"index": index}
 
 
+def _validate_new_cells(cells: list[dict[str, Any]]) -> None:
+    """Validate every item of an insert_cells batch up front.
+
+    Collects all problems and raises once, naming each offending item, so a bad
+    batch changes nothing and is cheap to fix and resend.
+    """
+    if not isinstance(cells, list):
+        raise CellTypeError("cells must be a list of {cell_type, source, summary?}")
+    problems = []
+    for pos, item in enumerate(cells):
+        if not isinstance(item, dict):
+            problems.append(f"item {pos}: not an object")
+            continue
+        if item.get("cell_type") not in _CELL_TYPES:
+            problems.append(
+                f"item {pos}: invalid cell_type {item.get('cell_type')!r}"
+            )
+        if not isinstance(item.get("source", ""), str):
+            problems.append(f"item {pos}: source must be a string")
+    if problems:
+        raise CellTypeError("; ".join(problems))
+
+
+def insert_cells(
+    path: str | os.PathLike, index: int, cells: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Insert several cells contiguously *before* ``index`` in one atomic write.
+
+    ``cells`` is a list of ``{cell_type, source, summary?}`` inserted in order
+    (``index == len`` appends). All items are validated first: if any is invalid
+    the whole batch fails, naming the offenders, and nothing is written. Returns
+    ``{"indices": [...]}`` — the positions the new cells landed at.
+    """
+    _validate_new_cells(cells)
+    nb = _load(path)
+    n = len(nb.cells)
+    if not isinstance(index, int) or index < 0:
+        raise CellIndexError(f"Invalid insert index {index!r}")
+    if index > n:
+        raise CellIndexError(
+            f"Cannot insert at {index}: notebook has {n} cell(s) (valid 0..{n})"
+        )
+    new = []
+    for item in cells:
+        cell = _new_cell(item["cell_type"], item.get("source", ""))
+        _set_summary(cell, item.get("summary"))
+        new.append(cell)
+    if new:
+        nb.cells[index:index] = new
+        _save(nb, path)
+    return {"indices": list(range(index, index + len(new)))}
+
+
 def edit_cell(
     path: str | os.PathLike,
     index: int,
