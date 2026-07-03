@@ -108,6 +108,8 @@ tag を切るときは `__version__` も同じ値に上げる。過去に pyproj
    - `notebook_edit/__init__.py` の `__version__` を `X.Y.0` に bump、
    - `CHANGELOG.md` の `[Unreleased]` を `[X.Y.0] - <date>` に確定、
    - `HANDOFF.md` を「リリース済み」に更新。
-3. `uv sync`（editable メタデータを新 version に更新）→ `uv run pytest -q` green を確認。
+3. **`uv sync --reinstall-package notebook-edit`**（`__version__` を変えても素の `uv sync` は editable を
+   再ビルドせず配布メタデータが古いまま残る。`--reinstall-package` で 0.7.0 等に更新）→ `uv run pytest -q`
+   green を確認（`test_version_matches_distribution_metadata` がこの不一致を検知する）。
    `nb-edit --version` == `importlib.metadata.version("notebook-edit")` == tag を目視確認。
 4. annotated tag `vX.Y.0`（前例の tagger メッセージ形式）→ `git push origin main` と `git push origin vX.Y.0`。

@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+（次の変更をここに追記する）
+
+## [0.7.0] - 2026-07-04
+
+ノートブック新規作成と、バージョンの single source of truth 化。
+
 ### Added
 
 - **`create_notebook(path, cells=None)`**: 新規 `.ipynb` を作成（ADR-0015）。空 or 初期セル付き。

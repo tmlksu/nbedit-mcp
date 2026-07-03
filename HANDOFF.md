@@ -7,12 +7,10 @@
 
 ## 現在地（一言で）
 
-**[Unreleased] に2件（未タグ・未コミット）**: (1) `create_notebook`（新規 `.ipynb` 作成・上書き拒否、
+**v0.7.0 リリース済み**（タグ `v0.7.0`、`main`）。(1) `create_notebook`（新規 `.ipynb` 作成・上書き拒否、
 [ADR-0015](docs/adr/0015-create-notebook.md)）、(2) **バージョンの single source of truth 化**
 （`__version__` を源に、pyproject dynamic / `nb-edit --version` / MCP `serverInfo.version` が一致、
-[ADR-0016](docs/adr/0016-version-single-source.md)）。ツールは **9**、テスト **75 passed**。
-※ 直前の **v0.6.0**（セル id 併用）はリリース済み。→ 次リリース = **v0.7.0** 候補（判断待ち）。
-リリース時は `__version__` を 0.7.0 に bump（CLAUDE.md「リリース手順」参照）。
+[ADR-0016](docs/adr/0016-version-single-source.md)）。`__version__` は `0.7.0`。ツールは **9**、テスト **75 passed**。
 
 ## 完成しているもの（検証済み）
 
@@ -39,10 +37,10 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.6.0 + Unreleased）
+## 済み（〜v0.7.0）
 
-- [Unreleased]: バージョン single source（`__version__`、pyproject dynamic、`--version`、MCP serverInfo）（ADR-0016）、75 passed。
-- [Unreleased]: `create_notebook`（新規作成・上書き拒否・親dir必須）（ADR-0015）、ツール 9。
+- v0.7.0: `create_notebook`（新規作成・上書き拒否・親dir必須、ADR-0015）＋ バージョン single source
+  （`__version__`、pyproject dynamic、`--version`、MCP serverInfo、ADR-0016）、75 passed。ツール 9。
 - v0.6.0: セル id 併用アドレッシング（read/edit/patch/delete/move で index|id）（ADR-0014）、67 passed。
   戻り値・list/read に `id` を追加。CLI は対象指定を `--index`/`--id` に変更（insert 位置は index のまま）。
 - v0.5.0: 複数セル一括挿入 insert_cells（atomic）（ADR-0013）、52 passed。
