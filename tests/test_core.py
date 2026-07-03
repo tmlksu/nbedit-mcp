@@ -252,7 +252,7 @@ def test_read_does_not_create_backup(nb_path):
 # Mutations
 # --------------------------------------------------------------------------- #
 def test_insert_before(nb_path):
-    assert core.insert_cell(nb_path, 1, "markdown", "## mid") == {"index": 1}
+    assert core.insert_cell(nb_path, 1, "markdown", "## mid")["index"] == 1
     cells = core.list_cells(nb_path)
     assert [c["type"] for c in cells] == ["markdown", "markdown", "code", "raw"]
     assert core.read_cells(nb_path, [1])[0]["source"] == "## mid"
@@ -276,7 +276,7 @@ def test_insert_cells_contiguous_in_order(nb_path):
             {"cell_type": "code", "source": "df = load()", "summary": "読込"},
         ],
     )
-    assert result == {"indices": [1, 2, 3]}
+    assert result["indices"] == [1, 2, 3]
     cells = core.list_cells(nb_path)
     assert [c["type"] for c in cells[1:4]] == ["markdown", "code", "code"]
     assert cells[3]["summary"] == "読込"  # per-item summary applied
@@ -288,13 +288,13 @@ def test_insert_cells_contiguous_in_order(nb_path):
 
 def test_insert_cells_append_at_len(nb_path):
     r = core.insert_cells(nb_path, 3, [{"cell_type": "code", "source": "z = 1"}])
-    assert r == {"indices": [3]}
+    assert r["indices"] == [3]
     assert core.read_cells(nb_path, [3])[0]["source"] == "z = 1"
 
 
 def test_insert_cells_empty_is_noop(nb_path):
     before = core.list_cells(nb_path)
-    assert core.insert_cells(nb_path, 1, []) == {"indices": []}
+    assert core.insert_cells(nb_path, 1, []) == {"indices": [], "ids": []}
     assert core.list_cells(nb_path) == before
     assert not (nb_path.parent / (nb_path.name + ".bak")).exists()  # no write
 
@@ -336,17 +336,16 @@ def test_edit_markdown_no_output_side_effect(nb_path):
 
 
 def test_patch_unique(nb_path):
-    assert core.patch_cell(nb_path, 1, "x = 1", "x = 99") == {
-        "index": 1,
-        "replacements": 1,
-    }
+    result = core.patch_cell(nb_path, 1, "x = 1", "x = 99")
+    assert result["index"] == 1 and result["replacements"] == 1
     cell = core.read_cells(nb_path, [1])[0]
     assert cell["source"] == "x = 99\nprint(x)"
     assert cell["outputs_text"] == ""  # cleared
 
 
 def test_delete(nb_path):
-    assert core.delete_cell(nb_path, 0) == {"deleted_index": 0, "type": "markdown"}
+    result = core.delete_cell(nb_path, 0)
+    assert result["deleted_index"] == 0 and result["type"] == "markdown"
     assert [c["type"] for c in core.list_cells(nb_path)] == ["code", "raw"]
 
 
@@ -431,3 +430,104 @@ def test_failed_mutation_leaves_file_intact(nb_path):
     with pytest.raises(CellIndexError):
         core.edit_cell(nb_path, 99, "boom")
     assert nb_path.read_bytes() == before
+
+
+# --------------------------------------------------------------------------- #
+# Cell-id addressing (ADR-0014)
+# --------------------------------------------------------------------------- #
+def _id_at(nb_path, index):
+    return core.list_cells(nb_path)[index]["id"]
+
+
+def test_list_and_read_expose_id(nb_path):
+    listed = core.list_cells(nb_path)
+    assert all(isinstance(c["id"], str) and c["id"] for c in listed)
+    read = core.read_cells(nb_path, [1])[0]
+    assert read["id"] == listed[1]["id"]
+
+
+def test_read_cells_by_id(nb_path):
+    cid = _id_at(nb_path, 1)
+    cell = core.read_cells(nb_path, ids=[cid])[0]
+    assert cell["id"] == cid
+    assert cell["source"] == "x = 1\nprint(x)"
+
+
+def test_read_cells_rejects_both_index_and_id(nb_path):
+    with pytest.raises(CellIndexError):
+        core.read_cells(nb_path, [0], ids=[_id_at(nb_path, 0)])
+
+
+def test_read_cells_rejects_neither(nb_path):
+    with pytest.raises(CellIndexError):
+        core.read_cells(nb_path)
+
+
+def test_read_cells_unknown_id_lists_offender(nb_path):
+    with pytest.raises(CellIndexError) as exc:
+        core.read_cells(nb_path, ids=["nope-not-real"])
+    assert "nope-not-real" in str(exc.value)
+
+
+def test_edit_by_id_hits_right_cell(nb_path):
+    cid = _id_at(nb_path, 1)
+    result = core.edit_cell(nb_path, source="y = 2", cell_id=cid)
+    assert result == {"index": 1, "id": cid}
+    assert core.read_cells(nb_path, ids=[cid])[0]["source"] == "y = 2"
+
+
+def test_patch_by_id(nb_path):
+    cid = _id_at(nb_path, 1)
+    result = core.patch_cell(nb_path, old="x = 1", new="x = 99", cell_id=cid)
+    assert result["id"] == cid
+    assert core.read_cells(nb_path, ids=[cid])[0]["source"] == "x = 99\nprint(x)"
+
+
+def test_delete_by_id(nb_path):
+    cid = _id_at(nb_path, 0)
+    result = core.delete_cell(nb_path, cell_id=cid)
+    assert result["id"] == cid
+    assert cid not in [c["id"] for c in core.list_cells(nb_path)]
+
+
+def test_move_by_from_id_preserves_outputs(nb_path):
+    cid = _id_at(nb_path, 1)  # the code cell with stale output
+    core.move_cell(nb_path, to_index=0, from_id=cid)
+    moved = core.read_cells(nb_path, [0])[0]
+    assert moved["id"] == cid
+    assert moved["execution_count"] == 5  # move must not clear outputs
+
+
+def test_id_is_stable_across_insert_shift(nb_path):
+    """The whole point: an id keeps pointing at the same cell after an insert
+    shifts every index below it."""
+    cid = _id_at(nb_path, 1)  # code cell at index 1
+    core.insert_cell(nb_path, 0, "markdown", "## new top")  # pushes it to index 2
+    # index 1 now addresses a different cell; the id still finds the original.
+    assert _id_at(nb_path, 2) == cid
+    core.patch_cell(nb_path, old="x = 1", new="x = 7", cell_id=cid)
+    assert core.read_cells(nb_path, ids=[cid])[0]["source"].startswith("x = 7")
+
+
+def test_resolve_rejects_both_index_and_id(nb_path):
+    with pytest.raises(CellIndexError):
+        core.delete_cell(nb_path, index=0, cell_id=_id_at(nb_path, 0))
+
+
+def test_resolve_rejects_neither_index_nor_id(nb_path):
+    with pytest.raises(CellIndexError):
+        core.delete_cell(nb_path)
+
+
+def test_insert_returns_id(nb_path):
+    result = core.insert_cell(nb_path, 0, "code", "a = 1")
+    assert isinstance(result["id"], str) and result["id"]
+    assert _id_at(nb_path, 0) == result["id"]
+
+
+def test_insert_cells_returns_ids(nb_path):
+    result = core.insert_cells(
+        nb_path, 0, [{"cell_type": "code", "source": "a"}, {"cell_type": "raw", "source": "b"}]
+    )
+    assert result["indices"] == [0, 1]
+    assert [_id_at(nb_path, i) for i in (0, 1)] == result["ids"]

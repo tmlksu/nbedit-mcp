@@ -75,6 +75,25 @@ async def test_insert_patch_read_roundtrip(notebook):
     assert cell["outputs_text"] == ""  # code cell edited -> outputs cleared
 
 
+async def test_id_addressing_roundtrip(notebook):
+    """Insert, then patch/read the cell by its stable id across the stdio boundary."""
+    async def run(session):
+        ins = await session.call_tool("insert_cell", {
+            "path": notebook, "index": 1, "cell_type": "code",
+            "source": "print('hi')",
+        })
+        cid = json.loads(_text(ins))["id"]
+        await session.call_tool("patch_cell", {
+            "path": notebook, "cell_id": cid, "old": "hi", "new": "world",
+        })
+        read = await session.call_tool("read_cells", {"path": notebook, "ids": [cid]})
+        return cid, [json.loads(c.text) for c in read.content if c.type == "text"]
+
+    cid, cells = await _session(run)
+    assert cells[0]["id"] == cid
+    assert cells[0]["source"] == "print('world')"
+
+
 async def test_error_surfaces_as_tool_error(notebook):
     async def run(session):
         return await session.call_tool("read_cells", {"path": notebook, "indices": [99]})

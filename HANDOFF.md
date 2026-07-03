@@ -3,20 +3,23 @@
 次のセッション（人間 or LLM）が最初に読むファイル。「今どこまで出来ていて、次に何をするか」だけを書く。
 恒久ルールは [CLAUDE.md](CLAUDE.md)、決定理由は [docs/adr/](docs/adr/)、変更履歴は [CHANGELOG.md](CHANGELOG.md)。
 
-**最終更新: 2026-07-02**
+**最終更新: 2026-07-03**
 
 ## 現在地（一言で）
 
-**v0.5.0 リリース済み**（タグ `v0.5.0`、`main`）。複数セルの一括挿入
-`insert_cells(path, index, cells)`（atomic + 前検証 + 名指しエラー）を追加、`insert_cell` は残置。
-ツールは **8**、テスト 52 passed。
+**id 併用アドレッシングを実装（[Unreleased]、未タグ）**。既存セルを指すツール（`read`/`edit`/`patch`/
+`delete`/`move` の対象）を **`index` または `id`** で指定できるようにした（[ADR-0014](docs/adr/0014-cell-id-addressing.md)）。
+nbformat 4.5+ の安定 `cell.id` を使い、insert/delete/move で index がズレても同じセルを指せる
+→ patch 連発時の stale index 事故を防ぐ。ツールは **8**、テスト **67 passed**。
+※ バージョンタグはまだ切っていない（リリースは判断待ち。切るなら minor bump 相当 = v0.6.0 候補）。
 
 ## 完成しているもの（検証済み）
 
-- `notebook_edit/{core,cli,mcp_server,__init__}.py` — 7 機能すべて実装。
-- `tests/test_core.py`（24 件）+ `tests/test_mcp_stdio.py`（3 件）— `uv run pytest -q` で **27 passed**。
+- `notebook_edit/{core,cli,mcp_server,__init__}.py` — 8 機能すべて実装。id 併用は `core._resolve`
+  に一元化（未発見・重複 id は即エラー）。挿入位置（`insert*` の `index`、`move` の `to_index`）は index のまま。
+- `tests/test_core.py`（64 件）+ `tests/test_mcp_stdio.py`（4 件）— `uv run pytest -q` で **67 passed**。
   stdio テストは `python -m notebook_edit.mcp_server` を実サブプロセス起動し、tool 列挙 /
-  insert→patch→read / エラー時 `isError` を検証。
+  insert→patch→read / **id 往復（insert→patch by cell_id→read by ids）** / エラー時 `isError` を検証。
 - `.github/workflows/ci.yml` — Python 3.10/3.11/3.12 で `uv sync` → `pytest`（push/PR トリガ）。
 - ドキュメント一式（README / CLAUDE.md / ADR 0001–0007 / CHANGELOG / 本ファイル）。
 
@@ -35,8 +38,10 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.5.0）
+## 済み（〜v0.5.0 + Unreleased）
 
+- [Unreleased]: セル id 併用アドレッシング（read/edit/patch/delete/move で index|id）（ADR-0014）、67 passed。
+  戻り値・list/read に `id` を追加。CLI は対象指定を `--index`/`--id` に変更（insert 位置は index のまま）。
 - v0.5.0: 複数セル一括挿入 insert_cells（atomic）（ADR-0013）、52 passed。
 - v0.4.0: read_cells のサイズ上限（source 窓 + 総量バジェット + offset）（ADR-0012）。
 - v0.3.0: 複数セル一括読み取り + 明示要約（metadata）（ADR-0010/0011）。

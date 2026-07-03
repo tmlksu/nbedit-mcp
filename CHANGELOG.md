@@ -5,7 +5,22 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- **セルを `id` でも指定可能に**（index と併用、ADR-0014）。nbformat 4.5+ の安定した `cell.id` を使い、
+  insert/delete/move で index がズレても同じセルを指し続けられる。patch 連発時の stale index 事故を防ぐ。
+  - `read_cells(path, indices=None, offset=0, ids=None)`: `indices` か `ids` の一方で指定。
+  - `edit_cell` / `patch_cell` / `delete_cell` に `cell_id`、`move_cell` に `from_id` を追加（対象セルの指定）。
+    挿入位置（`insert*` の `index`、`move` の `to_index`）は index のまま。
+  - 未発見・重複 id は `CellIndexError` で**即エラー**（index の「静かに別セルを書き換える」を回避）。
+  - `list_cells` / `read_cells` の各エントリと、`insert*`/`edit`/`patch`/`delete`/`move` の戻り値に
+    `id`（複数は `ids`）を追加。→ 一覧を1回見れば以降 id で全部指せる。
+
+### Changed
+
+- CLI: 既存セルを指すコマンド（`edit-cell`/`patch-cell`/`delete-cell`）の対象指定を位置 index から
+  `--index` / `--id`（排他・必須）に変更。`move-cell` は `--from-index` / `--from-id` を追加（移動先 `to_index`
+  は位置引数のまま）。`read-cells` は従来の位置 index を残しつつ `--id` を追加。
 
 ## [0.5.0] - 2026-07-02
 

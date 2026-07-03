@@ -57,12 +57,17 @@ notebook_edit/
     （[ADR-0011](docs/adr/0011-explicit-summary-metadata.md)）。
 11. **一括挿入 `insert_cells(path, index, cells)` は atomic**（全 item 前検証→1回で書く）。
     単発 `insert_cell` は残す（write は低リスク版を保持）（[ADR-0013](docs/adr/0013-batch-insert.md)）。
+12. **既存セルは `index` または `id` で指定**（`read`/`edit`/`patch`/`delete`/`move` の対象）。
+    `core._resolve` に一元化し、両方・なしはエラー。id（nbformat 4.5+ の `cell.id`）は shift しない。
+    未発見・重複 id は `CellIndexError` で即エラー（静かな誤爆を作らない）。**挿入位置は index のまま**
+    （`insert*` の `index`、`move` の `to_index`）。`list_cells`/`read_cells`/各変更系の戻り値は `id` を含む
+    （[ADR-0014](docs/adr/0014-cell-id-addressing.md)）。
 
 ## 開発フロー
 
 ```bash
 uv sync                 # 依存インストール
-uv run pytest -q        # テスト（現在 24 件）
+uv run pytest -q        # テスト（現在 66 件）
 uv run nb-edit --help   # CLI
 uv run nb-edit-mcp      # MCP stdio サーバー（手動起動）
 ```

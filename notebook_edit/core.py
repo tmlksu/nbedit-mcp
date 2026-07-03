@@ -133,6 +133,46 @@ def _check_index(nb: NotebookNode, index: int, *, action: str) -> None:
         )
 
 
+def _resolve(
+    nb: NotebookNode,
+    *,
+    index: int | None = None,
+    cell_id: str | None = None,
+    action: str,
+) -> int:
+    """Resolve a target existing cell to its 0-based position.
+
+    Exactly one of ``index`` / ``cell_id`` must be given. ``cell_id`` matches the
+    stable ``cell.id`` (nbformat 4.5+): a miss or a duplicate raises loudly rather
+    than silently touching the wrong cell — unlike a plausible-but-wrong index.
+    """
+    provided = (index is not None) + (cell_id is not None)
+    if provided == 0:
+        raise CellIndexError(f"Provide an index or a cell id to {action} a cell")
+    if provided == 2:
+        raise CellIndexError(
+            f"Provide either index or cell id to {action}, not both"
+        )
+    if cell_id is not None:
+        if not isinstance(cell_id, str):
+            raise CellIndexError(
+                f"Cell id must be a string, got {type(cell_id).__name__}"
+            )
+        matches = [i for i, c in enumerate(nb.cells) if c.get("id") == cell_id]
+        if not matches:
+            raise CellIndexError(
+                f"No cell with id {cell_id!r}: notebook has {len(nb.cells)} cell(s) "
+                "(ids are listed by list_cells / read_cells)"
+            )
+        if len(matches) > 1:
+            raise CellIndexError(
+                f"Cell id {cell_id!r} is not unique ({len(matches)} matches)"
+            )
+        return matches[0]
+    _check_index(nb, index, action=action)
+    return index
+
+
 def _source_str(cell: NotebookNode) -> str:
     """nbformat stores source as str or list[str]; normalize to str."""
     src = cell.get("source", "")
@@ -283,6 +323,7 @@ def list_cells(path: str | os.PathLike) -> list[dict[str, Any]]:
         result.append(
             {
                 "index": i,
+                "id": cell.get("id"),
                 "type": cell.get("cell_type"),
                 "summary": _summary(cell),
                 "num_lines": source.count("\n") + 1 if source else 0,
@@ -307,6 +348,7 @@ def _cell_view(cell: NotebookNode, index: int, offset: int = 0) -> dict[str, Any
     window = full[offset : offset + _SOURCE_WINDOW]
     out: dict[str, Any] = {
         "index": index,
+        "id": cell.get("id"),
         "type": cell.get("cell_type"),
         "source": window,
     }
@@ -320,36 +362,73 @@ def _cell_view(cell: NotebookNode, index: int, offset: int = 0) -> dict[str, Any
     return out
 
 
+def _resolve_read_ids(nb: NotebookNode, ids: list[str]) -> list[int]:
+    """Resolve a list of cell ids to positions, all up front.
+
+    Mirrors read_cells' index strictness: every offender (not found or not
+    unique) is collected and reported in one ``CellIndexError`` — no partial read.
+    """
+    if not isinstance(ids, list):
+        raise CellIndexError("ids must be a list of cell-id strings")
+    positions: list[int] = []
+    bad: list[str] = []
+    for cid in ids:
+        matches = [i for i, c in enumerate(nb.cells) if c.get("id") == cid]
+        if len(matches) == 1:
+            positions.append(matches[0])
+        else:
+            bad.append(cid)
+    if bad:
+        raise CellIndexError(
+            f"Invalid cell id(s) {bad}: not found or not unique "
+            "(ids are listed by list_cells / read_cells)"
+        )
+    return positions
+
+
 def read_cells(
-    path: str | os.PathLike, indices: list[int], offset: int = 0
+    path: str | os.PathLike,
+    indices: list[int] | None = None,
+    offset: int = 0,
+    ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Read one or more cells in a single call, in the requested order.
 
+    Address the cells by ``indices`` (0-based) **or** by ``ids`` (stable
+    ``cell.id``) — pass exactly one. Ids don't shift when cells are inserted /
+    deleted / moved, so they are safer once you've listed the notebook.
+
     Each result is a view of a cell (source windowed to ``_SOURCE_WINDOW`` chars
-    starting at ``offset``, plus rendered outputs for code cells). All indices
-    are validated up front: if any is out of range or negative the whole call
-    fails with a ``CellIndexError`` listing the offenders. Duplicate indices are
+    starting at ``offset``, plus rendered outputs for code cells) and carries the
+    cell's ``id``. All targets are validated up front: if any is out of range,
+    negative, or an unknown/duplicate id the whole call fails with a
+    ``CellIndexError`` listing the offenders. Duplicates in the request are
     allowed and returned as given.
 
     The combined source+outputs size of the response is capped at ``_READ_BUDGET``
-    chars: once reached, remaining cells are returned as ``{index, type,
+    chars: once reached, remaining cells are returned as ``{index, id, type,
     source_length, content_omitted: True}`` (read them in a smaller batch or page
     with ``offset``). Use ``offset`` to page through a cell larger than the window.
     """
     if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
         raise CellIndexError(f"offset must be a non-negative int, got {offset!r}")
+    if (indices is None) == (ids is None):
+        raise CellIndexError("Provide exactly one of indices or ids")
     nb = _load(path)
     n = len(nb.cells)
-    bad = [
-        i
-        for i in indices
-        if not isinstance(i, int) or isinstance(i, bool) or i < 0 or i >= n
-    ]
-    if bad:
-        raise CellIndexError(
-            f"Invalid cell index(es) {bad}: notebook has {n} cell(s) "
-            f"(valid 0..{n - 1})"
-        )
+    if ids is not None:
+        indices = _resolve_read_ids(nb, ids)
+    else:
+        bad = [
+            i
+            for i in indices
+            if not isinstance(i, int) or isinstance(i, bool) or i < 0 or i >= n
+        ]
+        if bad:
+            raise CellIndexError(
+                f"Invalid cell index(es) {bad}: notebook has {n} cell(s) "
+                f"(valid 0..{n - 1})"
+            )
 
     result: list[dict[str, Any]] = []
     used = 0
@@ -375,6 +454,7 @@ def _omitted_view(cell: NotebookNode, index: int) -> dict[str, Any]:
     """Placeholder for a cell dropped from a read_cells response for size."""
     return {
         "index": index,
+        "id": cell.get("id"),
         "type": cell.get("cell_type"),
         "source_length": len(_source_str(cell)),
         "content_omitted": True,
@@ -409,7 +489,7 @@ def insert_cell(
     _set_summary(cell, summary)
     nb.cells.insert(index, cell)
     _save(nb, path)
-    return {"index": index}
+    return {"index": index, "id": cell.get("id")}
 
 
 def _validate_new_cells(cells: list[dict[str, Any]]) -> None:
@@ -462,74 +542,102 @@ def insert_cells(
     if new:
         nb.cells[index:index] = new
         _save(nb, path)
-    return {"indices": list(range(index, index + len(new)))}
+    return {
+        "indices": list(range(index, index + len(new))),
+        "ids": [c.get("id") for c in new],
+    }
 
 
 def edit_cell(
     path: str | os.PathLike,
-    index: int,
-    source: str,
+    index: int | None = None,
+    source: str | None = None,
     summary: str | None = None,
+    cell_id: str | None = None,
 ) -> dict[str, Any]:
     """Replace a cell's entire source. Clears outputs if it's a code cell.
 
+    Target the cell by ``index`` (0-based) or ``cell_id`` — exactly one.
     ``summary`` (optional): ``None`` keeps any existing summary, a string sets
     it, a blank string clears it.
     """
+    if source is None:
+        raise NotebookError("edit_cell requires a source string")
     nb = _load(path)
-    _check_index(nb, index, action="edit")
-    cell = nb.cells[index]
+    pos = _resolve(nb, index=index, cell_id=cell_id, action="edit")
+    cell = nb.cells[pos]
     cell["source"] = source
     _clear_outputs(cell)
     _set_summary(cell, summary)
     _save(nb, path)
-    return {"index": index}
+    return {"index": pos, "id": cell.get("id")}
 
 
 def patch_cell(
-    path: str | os.PathLike, index: int, old: str, new: str
+    path: str | os.PathLike,
+    index: int | None = None,
+    old: str | None = None,
+    new: str | None = None,
+    cell_id: str | None = None,
 ) -> dict[str, Any]:
     """Replace a unique ``old`` substring with ``new`` within one cell.
 
+    Target the cell by ``index`` (0-based) or ``cell_id`` — exactly one.
     ``old`` must occur exactly once (0 or >1 occurrences raise PatchError).
     Clears outputs if it's a code cell.
     """
+    if old is None or new is None:
+        raise NotebookError("patch_cell requires both old and new strings")
     nb = _load(path)
-    _check_index(nb, index, action="patch")
-    cell = nb.cells[index]
+    pos = _resolve(nb, index=index, cell_id=cell_id, action="patch")
+    cell = nb.cells[pos]
     source = _source_str(cell)
     count = source.count(old)
     if count == 0:
-        raise PatchError(f"`old` string not found in cell {index}")
+        raise PatchError(f"`old` string not found in cell {pos}")
     if count > 1:
         raise PatchError(
-            f"`old` string is not unique in cell {index} ({count} matches); "
+            f"`old` string is not unique in cell {pos} ({count} matches); "
             "include more surrounding context to disambiguate"
         )
     cell["source"] = source.replace(old, new, 1)
     _clear_outputs(cell)
     _save(nb, path)
-    return {"index": index, "replacements": 1}
+    return {"index": pos, "id": cell.get("id"), "replacements": 1}
 
 
-def delete_cell(path: str | os.PathLike, index: int) -> dict[str, Any]:
-    """Delete the cell at ``index``."""
+def delete_cell(
+    path: str | os.PathLike,
+    index: int | None = None,
+    cell_id: str | None = None,
+) -> dict[str, Any]:
+    """Delete a cell, addressed by ``index`` (0-based) or ``cell_id``."""
     nb = _load(path)
-    _check_index(nb, index, action="delete")
-    cell_type = nb.cells[index].get("cell_type")
-    del nb.cells[index]
+    pos = _resolve(nb, index=index, cell_id=cell_id, action="delete")
+    cell = nb.cells[pos]
+    deleted_id = cell.get("id")
+    cell_type = cell.get("cell_type")
+    del nb.cells[pos]
     _save(nb, path)
-    return {"deleted_index": index, "type": cell_type}
+    return {"deleted_index": pos, "id": deleted_id, "type": cell_type}
 
 
 def move_cell(
-    path: str | os.PathLike, from_index: int, to_index: int
+    path: str | os.PathLike,
+    from_index: int | None = None,
+    to_index: int | None = None,
+    from_id: str | None = None,
 ) -> dict[str, Any]:
-    """Move a cell from ``from_index`` to ``to_index`` (final position)."""
+    """Move a cell to ``to_index`` (final position, 0-based).
+
+    Address the moved cell by ``from_index`` or ``from_id`` (exactly one); the
+    destination ``to_index`` is always positional. Does not clear outputs (source
+    is unchanged).
+    """
     nb = _load(path)
-    _check_index(nb, from_index, action="move")
+    from_pos = _resolve(nb, index=from_index, cell_id=from_id, action="move")
     _check_index(nb, to_index, action="move to")
-    cell = nb.cells.pop(from_index)
+    cell = nb.cells.pop(from_pos)
     nb.cells.insert(to_index, cell)
     _save(nb, path)
-    return {"from": from_index, "to": to_index}
+    return {"from": from_pos, "to": to_index, "id": cell.get("id")}

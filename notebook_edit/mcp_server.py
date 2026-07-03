@@ -32,7 +32,9 @@ def _guard(fn, *args, **kwargs) -> Any:
 def list_cells(path: str) -> list[dict]:
     """List every cell as a compact outline (cheap overview).
 
-    Returns index, type, summary, num_lines, has_outputs, has_error per cell.
+    Returns index, id, type, summary, num_lines, has_outputs, has_error per cell.
+    `id` is the cell's stable identifier: unlike index it does NOT shift when
+    cells are inserted/deleted/moved, so prefer addressing later edits by `id`.
     `summary` is the cell's leading `#` comment block (code) or leading lines
     (markdown/raw); `has_error` flags code cells whose outputs contain an error.
     Cell indices are 0-based. Call this first to orient before editing.
@@ -41,22 +43,30 @@ def list_cells(path: str) -> list[dict]:
 
 
 @mcp.tool()
-def read_cells(path: str, indices: list[int], offset: int = 0) -> list[dict]:
-    """Read one or more cells at once (pass a list of 0-based indices).
+def read_cells(
+    path: str,
+    indices: list[int] | None = None,
+    offset: int = 0,
+    ids: list[str] | None = None,
+) -> list[dict]:
+    """Read one or more cells at once, addressed by `indices` OR `ids`.
 
-    Prefer a single call with several indices over many single reads. Returns,
-    per cell, its source plus (for code cells) execution_count, outputs_text
-    (rendered stdout/results, with errors and [image/*] placeholders), has_error,
-    and output_types. All indices are validated first: if any is invalid the
-    whole call errors. Never executes code; only reads stored outputs.
+    Pass exactly one of `indices` (0-based) or `ids` (stable cell.id from
+    list_cells). Ids don't shift when cells move, so prefer them once listed.
+    Prefer a single call with several targets over many single reads. Returns,
+    per cell, its id and source plus (for code cells) execution_count,
+    outputs_text (rendered stdout/results, with errors and [image/*]
+    placeholders), has_error, and output_types. All targets are validated first:
+    if any is invalid (bad index, unknown/duplicate id) the whole call errors.
+    Never executes code; only reads stored outputs.
 
     Large results are bounded: each cell's source is windowed (~8000 chars) and
     the response total is capped (~20000 chars). A windowed cell carries
     source_truncated/source_length/source_offset — page it by re-reading that
-    index with a larger `offset`. Cells past the total budget come back as
-    {index, type, source_length, content_omitted: true}; read them separately.
+    target with a larger `offset`. Cells past the total budget come back as
+    {index, id, type, source_length, content_omitted: true}; read them separately.
     """
-    return _guard(core.read_cells, path, indices, offset)
+    return _guard(core.read_cells, path, indices, offset, ids)
 
 
 @mcp.tool()
@@ -89,37 +99,68 @@ def insert_cells(path: str, index: int, cells: list[dict]) -> dict:
 
 @mcp.tool()
 def edit_cell(
-    path: str, index: int, source: str, summary: str | None = None
+    path: str,
+    source: str,
+    index: int | None = None,
+    cell_id: str | None = None,
+    summary: str | None = None,
 ) -> dict:
     """Replace a cell's ENTIRE source. For small changes prefer patch_cell.
 
-    Editing a code cell clears its outputs and execution_count (they are stale).
-    Optionally pass `summary` to set the cell's metadata summary (omit to keep
-    the existing one; pass "" to clear it).
+    Target the cell by `index` (0-based) OR `cell_id` (stable id from list_cells);
+    pass exactly one. Prefer `cell_id` after listing — it doesn't shift when other
+    cells change, avoiding off-by-one edits to the wrong cell. Editing a code cell
+    clears its outputs and execution_count (they are stale). Optionally pass
+    `summary` to set the cell's metadata summary (omit to keep, "" to clear).
     """
-    return _guard(core.edit_cell, path, index, source, summary)
+    return _guard(core.edit_cell, path, index, source, summary, cell_id)
 
 
 @mcp.tool()
-def patch_cell(path: str, index: int, old: str, new: str) -> dict:
+def patch_cell(
+    path: str,
+    old: str,
+    new: str,
+    index: int | None = None,
+    cell_id: str | None = None,
+) -> dict:
     """Preferred edit tool: replace a unique `old` substring with `new` in a cell.
 
-    `old` must occur exactly once in the cell; otherwise this errors and asks for
-    more context. Keeps diffs small. Editing a code cell clears its outputs.
+    Target the cell by `index` (0-based) OR `cell_id` (stable id from list_cells);
+    pass exactly one. Prefer `cell_id` when chaining several patches — indices
+    shift after inserts/deletes/moves, ids don't, so this avoids patching the
+    wrong cell. `old` must occur exactly once in the cell; otherwise this errors
+    and asks for more context. Keeps diffs small. Editing a code cell clears its
+    outputs.
     """
-    return _guard(core.patch_cell, path, index, old, new)
+    return _guard(core.patch_cell, path, index, old, new, cell_id)
 
 
 @mcp.tool()
-def delete_cell(path: str, index: int) -> dict:
-    """Delete the cell at `index` (0-based)."""
-    return _guard(core.delete_cell, path, index)
+def delete_cell(
+    path: str, index: int | None = None, cell_id: str | None = None
+) -> dict:
+    """Delete a cell, addressed by `index` (0-based) OR `cell_id` (exactly one).
+
+    Prefer `cell_id` from list_cells — an id can't drift onto the wrong cell the
+    way a stale index can.
+    """
+    return _guard(core.delete_cell, path, index, cell_id)
 
 
 @mcp.tool()
-def move_cell(path: str, from_index: int, to_index: int) -> dict:
-    """Move the cell at `from_index` to `to_index` (final position, 0-based)."""
-    return _guard(core.move_cell, path, from_index, to_index)
+def move_cell(
+    path: str,
+    to_index: int,
+    from_index: int | None = None,
+    from_id: str | None = None,
+) -> dict:
+    """Move a cell to `to_index` (final position, 0-based).
+
+    Address the moved cell by `from_index` OR `from_id` (stable id; exactly one);
+    the destination `to_index` is always positional. Does not clear outputs.
+    """
+    return _guard(core.move_cell, path, from_index, to_index, from_id)
 
 
 def main() -> None:
