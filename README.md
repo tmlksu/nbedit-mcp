@@ -32,6 +32,9 @@ uv sync
 ## CLI
 
 ```bash
+uv run nb-edit --version                                    # バージョン表示
+uv run nb-edit create-notebook foo.ipynb                    # 空 notebook を新規作成
+uv run nb-edit create-notebook foo.ipynb --json '[{"cell_type":"markdown","source":"# Title"}]'  # 初期セル付き
 uv run nb-edit list-cells   foo.ipynb
 uv run nb-edit read-cells   foo.ipynb 0 2 5                  # 複数 index を一括
 uv run nb-edit read-cells   foo.ipynb --id a1b2c3d4          # id で読む
@@ -78,6 +81,7 @@ Git から取得する場合は `--from` を Git URL に差し替える:
 
 | ツール | 引数 | 説明 |
 |--------|------|------|
+| `create_notebook` | `path, [cells]` | 新規 `.ipynb` を作成（空 or 初期セル付き。既存は上書き拒否） |
 | `list_cells` | `path` | 全セルの目次（`id` + `summary` + `has_error`） |
 | `read_cells` | `path, [indices], [offset], [ids]` | 複数セルを一括読み取り（`indices` か `ids` の一方。source 窓＋`outputs_text`/`has_error`/`output_types`） |
 | `insert_cell` | `path, index, cell_type, source, [summary]` | index の前に1セル挿入 |
@@ -97,6 +101,17 @@ Git から取得する場合は `--from` を Git URL に差し替える:
   見つからない／重複 id は**即エラー**（index の「静かに別セルを書き換える」を回避）。ADR-0014。
   挿入位置（`insert*` の `index`、`move` の `to_index`）は位置概念なので index のまま。
   各変更系の戻り値も `id`（複数は `ids`）を返す。
+
+### バージョンの取得
+
+サーバー/CLI のバージョンは `notebook_edit/__init__.py` の `__version__` が唯一の源
+（pyproject は hatchling の dynamic version で追従）。クライアント（VS Code 拡張など）からは:
+
+- **MCP**: initialize ハンドシェイクの `serverInfo.version`（`serverInfo.name` は `notebook-edit`）。
+- **CLI**: `nb-edit --version`。
+- **配布メタデータ**: `importlib.metadata.version("notebook-edit")`。
+
+いずれも同じ値を返す（ADR-0016）。
 
 ### 要約規約と出力の扱い
 

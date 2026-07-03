@@ -11,10 +11,14 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from notebook_edit import core
+from notebook_edit import __version__, core
 from notebook_edit.core import NotebookError
 
 mcp = FastMCP("notebook-edit")
+# Report the package version in the MCP initialize handshake's serverInfo so
+# clients (e.g. a VS Code extension) can read it. FastMCP doesn't expose a
+# version arg, so set it on the low-level server directly (ADR-0016).
+mcp._mcp_server.version = __version__
 
 
 def _guard(fn, *args, **kwargs) -> Any:
@@ -26,6 +30,20 @@ def _guard(fn, *args, **kwargs) -> Any:
         from mcp.server.fastmcp.exceptions import ToolError
 
         raise ToolError(str(exc)) from exc
+
+
+@mcp.tool()
+def create_notebook(path: str, cells: list[dict] | None = None) -> dict:
+    """Create a NEW empty .ipynb notebook at `path` (optionally with initial cells).
+
+    Use this instead of hand-writing notebook JSON. `cells` (optional) is a list
+    of {cell_type, source, summary?} — the same shape as insert_cells — seeded in
+    order; omit it for an empty notebook. Refuses to overwrite an existing file
+    and requires the parent directory to exist (both error). The notebook is
+    nbformat 4.5, so every created cell gets a stable `id` right away. Returns
+    {"path", "num_cells", "ids"}. cell_type must be one of: code, markdown, raw.
+    """
+    return _guard(core.create_notebook, path, cells)
 
 
 @mcp.tool()

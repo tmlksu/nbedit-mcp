@@ -16,6 +16,8 @@ import pytest
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+import notebook_edit
+
 
 def _text(result) -> str:
     """Concatenate the text payload of a CallToolResult."""
@@ -45,14 +47,25 @@ async def _session(fn):
             return await fn(session)
 
 
-async def test_lists_all_seven_tools():
+async def test_initialize_reports_server_version():
+    """The MCP initialize handshake carries __version__ in serverInfo — this is
+    how a client (e.g. a VS Code extension) reads the server version."""
+    async def run(session):
+        return await session.initialize()
+
+    result = await _session(run)
+    assert result.serverInfo.name == "notebook-edit"
+    assert result.serverInfo.version == notebook_edit.__version__
+
+
+async def test_lists_all_tools():
     async def run(session):
         return {t.name for t in (await session.list_tools()).tools}
 
     names = await _session(run)
     assert names == {
-        "list_cells", "read_cells", "insert_cell", "insert_cells", "edit_cell",
-        "patch_cell", "delete_cell", "move_cell",
+        "create_notebook", "list_cells", "read_cells", "insert_cell",
+        "insert_cells", "edit_cell", "patch_cell", "delete_cell", "move_cell",
     }
 
 

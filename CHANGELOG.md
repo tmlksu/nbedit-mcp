@@ -5,7 +5,21 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- **`create_notebook(path, cells=None)`**: 新規 `.ipynb` を作成（ADR-0015）。空 or 初期セル付き。
+  `cells` は `insert_cells` と同形式 `{cell_type, source, summary?}`。**既存ファイルは上書き拒否**、
+  親ディレクトリが無ければエラー（どちらも何も書かない）。nbformat 4.5 で作るので作成直後から
+  `cell.id` で指せる。戻り値 `{"path", "num_cells", "ids"}`。ツールは 8 → 9。
+- CLI `create-notebook path [--json '[...]']`、MCP tool `create_notebook`。
+- **バージョンの single source of truth 化**（ADR-0016）。`notebook_edit.__version__` を唯一の源にし、
+  pyproject は `dynamic=["version"]`（hatchling）で追従。`nb-edit --version` と MCP initialize の
+  `serverInfo.version` が同じ値を名乗る（VS Code 拡張等のクライアントが取得可能）。
+
+### Fixed
+
+- `pyproject.toml` の `version` が v0.1.0〜v0.6.0 を通して `0.1.0` に取り残されていた問題を解消
+  （dynamic version 化で `__version__`=実バージョンに一致。配布メタデータが正しくなる）。ADR-0016。
 
 ## [0.6.0] - 2026-07-03
 

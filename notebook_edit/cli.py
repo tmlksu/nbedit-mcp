@@ -10,7 +10,7 @@ import argparse
 import json
 import sys
 
-from notebook_edit import core
+from notebook_edit import __version__, core
 from notebook_edit.core import NotebookError
 
 
@@ -23,7 +23,24 @@ def build_parser() -> argparse.ArgumentParser:
         prog="nb-edit",
         description="Structural editing of Jupyter notebooks. No kernel execution.",
     )
+    parser.add_argument(
+        "--version", action="version", version=f"nb-edit {__version__}"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("create-notebook", help="Create a new .ipynb (optionally with cells)")
+    p.add_argument("path")
+    p.add_argument(
+        "--json",
+        default=None,
+        dest="cells_json",
+        help='optional JSON array of {cell_type, source, summary?} to seed cells',
+    )
+    p.set_defaults(
+        func=lambda a: core.create_notebook(
+            a.path, json.loads(a.cells_json) if a.cells_json else None
+        )
+    )
 
     p = sub.add_parser("list-cells", help="List all cells with a preview")
     p.add_argument("path")

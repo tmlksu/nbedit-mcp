@@ -548,6 +548,39 @@ def insert_cells(
     }
 
 
+def create_notebook(
+    path: str | os.PathLike,
+    cells: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Create a new ``.ipynb`` notebook at ``path``.
+
+    Empty by default; pass ``cells`` (a list of ``{cell_type, source, summary?}``,
+    same shape as :func:`insert_cells`) to seed initial cells. Refuses to
+    overwrite an existing file, and requires the parent directory to exist —
+    both raise ``NotebookError`` rather than clobbering or guessing. Written
+    through the normal ``_save`` pipeline (validate -> atomic write) as nbformat
+    v4.5, so every cell gets a stable ``id`` immediately.
+    """
+    p = Path(path)
+    if p.exists():
+        raise NotebookError(
+            f"Refusing to overwrite existing file: {p} (edit it with the edit tools)"
+        )
+    if not p.parent.exists():
+        raise NotebookError(f"Parent directory does not exist: {p.parent}")
+    cells = cells or []
+    _validate_new_cells(cells)
+    nb = nbformat.v4.new_notebook()
+    new = []
+    for item in cells:
+        cell = _new_cell(item["cell_type"], item.get("source", ""))
+        _set_summary(cell, item.get("summary"))
+        new.append(cell)
+    nb.cells = new
+    _save(nb, p)
+    return {"path": str(p), "num_cells": len(new), "ids": [c.get("id") for c in new]}
+
+
 def edit_cell(
     path: str | os.PathLike,
     index: int | None = None,

@@ -62,12 +62,19 @@ notebook_edit/
     未発見・重複 id は `CellIndexError` で即エラー（静かな誤爆を作らない）。**挿入位置は index のまま**
     （`insert*` の `index`、`move` の `to_index`）。`list_cells`/`read_cells`/各変更系の戻り値は `id` を含む
     （[ADR-0014](docs/adr/0014-cell-id-addressing.md)）。
+13. **`create_notebook` は既存ファイルを上書きしない**（存在すれば `NotebookError`）。親ディレクトリが
+    無ければエラー（勝手に mkdir しない）。初期セルは `insert_cells` 形式・前検証を再利用し、不正なら何も作らない
+    （[ADR-0015](docs/adr/0015-create-notebook.md)）。作成は notebook 単位、他ツールは cell 単位（既存前提）。
+14. **バージョンの源は `notebook_edit/__init__.py` の `__version__` ただ1つ**（[ADR-0016](docs/adr/0016-version-single-source.md)）。
+    pyproject は `dynamic=["version"]` で hatchling がここを読む。CLI（`nb-edit --version`）と MCP の
+    initialize `serverInfo.version` も `__version__` を名乗る（`mcp._mcp_server.version` に設定）。
+    静的な `version=` を pyproject に**書き戻さない**（0.1.0 ドリフトの原因）。
 
 ## 開発フロー
 
 ```bash
 uv sync                 # 依存インストール
-uv run pytest -q        # テスト（現在 66 件）
+uv run pytest -q        # テスト（現在 75 件）
 uv run nb-edit --help   # CLI
 uv run nb-edit-mcp      # MCP stdio サーバー（手動起動）
 ```
@@ -89,3 +96,18 @@ MCP を実 stdio で叩く結合確認は現状スクラッチのスクリプト
 - **HANDOFF.md**: 毎セッション末に「今の状態・次の一手」を上書き。次のセッションはまずここを読む。
 - **docs/adr/**: 1決定1ファイル。確定後は不変（覆すなら新 ADR で Supersede）。
 - **CHANGELOG.md**: Keep a Changelog 準拠。変更は `[Unreleased]` に追記。
+
+## リリース手順（バージョンは tag と `__version__` を必ず揃える）
+
+配布は `uvx --from git+…@<tag>` の **git tag 参照**。バージョンの源は `__version__`（不変条件14）。
+tag を切るときは `__version__` も同じ値に上げる。過去に pyproject が `0.1.0` のまま取り残された事故
+（[ADR-0016](docs/adr/0016-version-single-source.md)）を再発させないため、次の順で行う:
+
+1. feature コミット（core/tests/wrappers/ADR/README、CHANGELOG は `[Unreleased]` のまま）。
+2. **finalize コミット**「Finalize vX.Y.0 …」で3点を同時に:
+   - `notebook_edit/__init__.py` の `__version__` を `X.Y.0` に bump、
+   - `CHANGELOG.md` の `[Unreleased]` を `[X.Y.0] - <date>` に確定、
+   - `HANDOFF.md` を「リリース済み」に更新。
+3. `uv sync`（editable メタデータを新 version に更新）→ `uv run pytest -q` green を確認。
+   `nb-edit --version` == `importlib.metadata.version("notebook-edit")` == tag を目視確認。
+4. annotated tag `vX.Y.0`（前例の tagger メッセージ形式）→ `git push origin main` と `git push origin vX.Y.0`。

@@ -9,6 +9,7 @@ from __future__ import annotations
 import nbformat
 import pytest
 
+import notebook_edit
 from notebook_edit import core
 from notebook_edit.core import (
     CellIndexError,
@@ -531,3 +532,73 @@ def test_insert_cells_returns_ids(nb_path):
     )
     assert result["indices"] == [0, 1]
     assert [_id_at(nb_path, i) for i in (0, 1)] == result["ids"]
+
+
+# --------------------------------------------------------------------------- #
+# Notebook creation (ADR-0015)
+# --------------------------------------------------------------------------- #
+def test_create_empty_notebook(tmp_path):
+    p = tmp_path / "new.ipynb"
+    result = core.create_notebook(p)
+    assert result == {"path": str(p), "num_cells": 0, "ids": []}
+    assert p.is_file()
+    nbformat.validate(nbformat.read(str(p), as_version=4))  # raises if invalid
+    assert core.list_cells(p) == []
+
+
+def test_create_notebook_with_cells(tmp_path):
+    p = tmp_path / "seeded.ipynb"
+    result = core.create_notebook(
+        p,
+        [
+            {"cell_type": "markdown", "source": "# Title"},
+            {"cell_type": "code", "source": "x = 1", "summary": "初期化"},
+        ],
+    )
+    assert result["num_cells"] == 2
+    cells = core.list_cells(p)
+    assert [c["type"] for c in cells] == ["markdown", "code"]
+    assert cells[1]["summary"] == "初期化"
+    # 4.5 -> cells have ids and are addressable immediately
+    assert cells == core.list_cells(p)
+    assert result["ids"] == [c["id"] for c in cells]
+    assert core.read_cells(p, ids=[result["ids"][1]])[0]["source"] == "x = 1"
+
+
+def test_create_notebook_refuses_overwrite(tmp_path):
+    p = tmp_path / "exists.ipynb"
+    core.create_notebook(p, [{"cell_type": "code", "source": "keep"}])
+    before = p.read_bytes()
+    with pytest.raises(NotebookError):
+        core.create_notebook(p, [{"cell_type": "code", "source": "clobber"}])
+    assert p.read_bytes() == before  # original untouched
+    assert not (p.parent / (p.name + ".bak")).exists()  # no write happened
+
+
+def test_create_notebook_missing_parent_dir(tmp_path):
+    with pytest.raises(NotebookError):
+        core.create_notebook(tmp_path / "no" / "such" / "dir.ipynb")
+
+
+def test_create_notebook_bad_item_writes_nothing(tmp_path):
+    p = tmp_path / "bad.ipynb"
+    with pytest.raises(CellTypeError):
+        core.create_notebook(p, [{"cell_type": "python", "source": "nope"}])
+    assert not p.exists()
+
+
+# --------------------------------------------------------------------------- #
+# Version single source of truth (ADR-0016)
+# --------------------------------------------------------------------------- #
+def test_version_is_semver_string():
+    v = notebook_edit.__version__
+    assert isinstance(v, str)
+    parts = v.split(".")
+    assert len(parts) == 3 and all(p.isdigit() for p in parts), v
+
+
+def test_version_matches_distribution_metadata():
+    """pyproject reads __version__ via hatchling dynamic version; they must agree."""
+    from importlib.metadata import version
+
+    assert version("notebook-edit") == notebook_edit.__version__
