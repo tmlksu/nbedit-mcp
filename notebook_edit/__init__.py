@@ -8,7 +8,7 @@ wrappers over the same core functions.
 # via hatchling's dynamic version; the CLI (`nb-edit --version`) and the MCP
 # server's initialize `serverInfo.version` report it too. Bump this in the
 # "Finalize vX.Y.0" release commit so it always matches the git tag.
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 from notebook_edit.core import (
     CellIndexError,

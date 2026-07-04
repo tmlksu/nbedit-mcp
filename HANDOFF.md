@@ -7,16 +7,15 @@
 
 ## 現在地（一言で）
 
-**[Unreleased]（未タグ・未コミット）: 書き込みの楽観ロック**。変更系に optional `expected_rev`、`notebook_rev`
-を追加（[ADR-0017](docs/adr/0017-write-revision-guard.md)）。read 時点から外部でファイルが変われば書き込みを
-拒否＝VS Code 等とのサイレント上書きを防ぐ。カーネル実行はしない（ADR-0002 は不変、競合の*検知*のみ）。
-ツールは **10**、テスト **83 passed**。※ 直前の **v0.7.0**（create_notebook＋バージョン単一源）はリリース済み。
-→ 次リリース = **v0.8.0** 候補（リリース時 `__version__`→0.8.0 に bump、CLAUDE.md「リリース手順」参照）。
+**v0.8.0 リリース済み**（タグ `v0.8.0`、`main`）: 書き込みの楽観ロック。変更系に optional `expected_rev`、
+`notebook_rev` を追加（[ADR-0017](docs/adr/0017-write-revision-guard.md)）。read 時点から外部でファイルが
+変われば書き込みを拒否＝VS Code 等とのサイレント上書きを防ぐ。カーネル実行はしない（ADR-0002 は不変、
+競合の*検知*のみ）。`__version__` は `0.8.0`。ツールは **10**、テスト **83 passed**。
 
 ## 完成しているもの（検証済み）
 
 - `notebook_edit/{core,cli,mcp_server,__init__}.py` — 10 機能。`__version__` は `__init__.py` の1箇所
-  （現在 `0.7.0`、pyproject は hatchling dynamic）。楽観ロックは `_rev`（内容ハッシュ）＋
+  （現在 `0.8.0`、pyproject は hatchling dynamic）。楽観ロックは `_rev`（内容ハッシュ）＋
   `_save(nb, path, expected_rev)` の単一チョークポイントで照合（backup 前に拒否）。変更系は新 `rev` を返す。
 - `tests/test_core.py`（78 件）+ `tests/test_mcp_stdio.py`（6 件）— `uv run pytest -q` で **83 passed**。
   stdio は tool 列挙（10個）/ insert→patch→read / id 往復 / serverInfo.version / **rev ガード（stale で isError）** を検証。
@@ -40,9 +39,9 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.7.0 + Unreleased）
+## 済み（〜v0.8.0）
 
-- [Unreleased]: 書き込み楽観ロック（`expected_rev`/`notebook_rev`、変更系は新 rev を返す）（ADR-0017）、83 passed。ツール 10。
+- v0.8.0: 書き込み楽観ロック（`expected_rev`/`notebook_rev`、変更系は新 rev を返す）（ADR-0017）、83 passed。ツール 10。
 
 - v0.7.0: `create_notebook`（新規作成・上書き拒否・親dir必須、ADR-0015）＋ バージョン single source
   （`__version__`、pyproject dynamic、`--version`、MCP serverInfo、ADR-0016）、75 passed。ツール 9。
