@@ -64,8 +64,9 @@ async def test_lists_all_tools():
 
     names = await _session(run)
     assert names == {
-        "create_notebook", "list_cells", "read_cells", "insert_cell",
-        "insert_cells", "edit_cell", "patch_cell", "delete_cell", "move_cell",
+        "create_notebook", "notebook_rev", "list_cells", "read_cells",
+        "insert_cell", "insert_cells", "edit_cell", "patch_cell", "delete_cell",
+        "move_cell",
     }
 
 
@@ -105,6 +106,26 @@ async def test_id_addressing_roundtrip(notebook):
     cid, cells = await _session(run)
     assert cells[0]["id"] == cid
     assert cells[0]["source"] == "print('world')"
+
+
+async def test_expected_rev_guard_over_stdio(notebook):
+    """notebook_rev + a stale expected_rev must surface as a tool error."""
+    async def run(session):
+        rev = json.loads(_text(
+            await session.call_tool("notebook_rev", {"path": notebook})
+        ))["rev"]
+        # external change (unguarded) invalidates `rev`
+        await session.call_tool("edit_cell", {
+            "path": notebook, "index": 0, "source": "# moved on",
+        })
+        return await session.call_tool("patch_cell", {
+            "path": notebook, "index": 0, "old": "moved", "new": "x",
+            "expected_rev": rev,
+        })
+
+    result = await _session(run)
+    assert result.isError is True
+    assert "changed on disk" in _text(result)
 
 
 async def test_error_surfaces_as_tool_error(notebook):

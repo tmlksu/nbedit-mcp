@@ -3,22 +3,25 @@
 次のセッション（人間 or LLM）が最初に読むファイル。「今どこまで出来ていて、次に何をするか」だけを書く。
 恒久ルールは [CLAUDE.md](CLAUDE.md)、決定理由は [docs/adr/](docs/adr/)、変更履歴は [CHANGELOG.md](CHANGELOG.md)。
 
-**最終更新: 2026-07-03**
+**最終更新: 2026-07-04**
 
 ## 現在地（一言で）
 
-**v0.7.0 リリース済み**（タグ `v0.7.0`、`main`）。(1) `create_notebook`（新規 `.ipynb` 作成・上書き拒否、
-[ADR-0015](docs/adr/0015-create-notebook.md)）、(2) **バージョンの single source of truth 化**
-（`__version__` を源に、pyproject dynamic / `nb-edit --version` / MCP `serverInfo.version` が一致、
-[ADR-0016](docs/adr/0016-version-single-source.md)）。`__version__` は `0.7.0`。ツールは **9**、テスト **75 passed**。
+**[Unreleased]（未タグ・未コミット）: 書き込みの楽観ロック**。変更系に optional `expected_rev`、`notebook_rev`
+を追加（[ADR-0017](docs/adr/0017-write-revision-guard.md)）。read 時点から外部でファイルが変われば書き込みを
+拒否＝VS Code 等とのサイレント上書きを防ぐ。カーネル実行はしない（ADR-0002 は不変、競合の*検知*のみ）。
+ツールは **10**、テスト **83 passed**。※ 直前の **v0.7.0**（create_notebook＋バージョン単一源）はリリース済み。
+→ 次リリース = **v0.8.0** 候補（リリース時 `__version__`→0.8.0 に bump、CLAUDE.md「リリース手順」参照）。
 
 ## 完成しているもの（検証済み）
 
-- `notebook_edit/{core,cli,mcp_server,__init__}.py` — 9 機能。`__version__` は `__init__.py` の1箇所。
-  pyproject は `dynamic=["version"]`（hatchling が `__init__.py` を読む）。`uv sync` 済み、配布メタデータ
-  = `__version__` = `nb-edit --version` = MCP `serverInfo.version`（現在すべて `0.6.0`）を確認。
-- `tests/test_core.py`（71 件）+ `tests/test_mcp_stdio.py`（5 件）— `uv run pytest -q` で **75 passed**。
-  stdio は tool 列挙（9個）/ insert→patch→read / id 往復 / **initialize の serverInfo.version** / `isError` を検証。
+- `notebook_edit/{core,cli,mcp_server,__init__}.py` — 10 機能。`__version__` は `__init__.py` の1箇所
+  （現在 `0.7.0`、pyproject は hatchling dynamic）。楽観ロックは `_rev`（内容ハッシュ）＋
+  `_save(nb, path, expected_rev)` の単一チョークポイントで照合（backup 前に拒否）。変更系は新 `rev` を返す。
+- `tests/test_core.py`（78 件）+ `tests/test_mcp_stdio.py`（6 件）— `uv run pytest -q` で **83 passed**。
+  stdio は tool 列挙（10個）/ insert→patch→read / id 往復 / serverInfo.version / **rev ガード（stale で isError）** を検証。
+- CLI/MCP 実機確認: `notebook-rev` → 正 rev で patch 通過 → 外部変更 → stale rev で
+  「Notebook changed on disk …」拒否＋ファイル保全 を確認。
 - `.github/workflows/ci.yml` — Python 3.10/3.11/3.12 で `uv sync` → `pytest`（push/PR トリガ）。
 - ドキュメント一式（README / CLAUDE.md / ADR 0001–0007 / CHANGELOG / 本ファイル）。
 
@@ -37,7 +40,9 @@
    - path の CWD 拘束（[ADR-0007](docs/adr/0007-mcp-fastmcp-and-paths.md)）
    - raw セル専用テストの追加
 
-## 済み（〜v0.7.0）
+## 済み（〜v0.7.0 + Unreleased）
+
+- [Unreleased]: 書き込み楽観ロック（`expected_rev`/`notebook_rev`、変更系は新 rev を返す）（ADR-0017）、83 passed。ツール 10。
 
 - v0.7.0: `create_notebook`（新規作成・上書き拒否・親dir必須、ADR-0015）＋ バージョン single source
   （`__version__`、pyproject dynamic、`--version`、MCP serverInfo、ADR-0016）、75 passed。ツール 9。

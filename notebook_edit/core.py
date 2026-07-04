@@ -12,6 +12,7 @@ outputs and execution count.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from typing import Any
@@ -81,18 +82,50 @@ def _load(path: str | os.PathLike) -> NotebookNode:
         raise NotebookError(f"Failed to read notebook {p}: {exc}") from exc
 
 
-def _save(nb: NotebookNode, path: str | os.PathLike) -> None:
-    """Validate then atomically write ``nb`` to ``path``.
+def _rev(path: str | os.PathLike) -> str:
+    """A short content-revision token for a file: sha256 of its bytes, 12 hex.
 
-    Pipeline: ``nbformat.validate`` -> copy existing file to ``<name>.ipynb.bak``
-    (single generation, overwritten each time) -> write a sibling temp file ->
-    ``os.replace`` (atomic on the same filesystem).
+    Content-based (not mtime): identical content -> identical rev (no false
+    conflict), and it does not depend on filesystem timestamp behaviour.
+    """
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
+
+
+def _save(
+    nb: NotebookNode,
+    path: str | os.PathLike,
+    expected_rev: str | None = None,
+) -> str:
+    """Validate then atomically write ``nb`` to ``path``. Returns the new rev.
+
+    Pipeline: ``nbformat.validate`` -> (optional ``expected_rev`` check) -> copy
+    existing file to ``<name>.ipynb.bak`` (single generation, overwritten each
+    time) -> write a sibling temp file -> ``os.replace`` (atomic on the same
+    filesystem).
+
+    If ``expected_rev`` is given, the current on-disk content must still match it
+    (optimistic concurrency, ADR-0017); otherwise the write is refused with a
+    ``NotebookError`` before touching the backup or the file, so a concurrent
+    external edit is surfaced loudly instead of silently overwritten.
     """
     p = Path(path)
     try:
         nbformat.validate(nb)
     except Exception as exc:
         raise NotebookError(f"Refusing to write invalid notebook: {exc}") from exc
+
+    if expected_rev is not None:
+        if not p.is_file():
+            raise NotebookError(
+                f"Notebook no longer exists on disk (had rev {expected_rev}); "
+                "re-read and retry"
+            )
+        current = _rev(p)
+        if current != expected_rev:
+            raise NotebookError(
+                f"Notebook changed on disk since you read it "
+                f"(expected rev {expected_rev}, now {current}); re-read and retry"
+            )
 
     # One-generation backup of the current on-disk file, if any.
     if p.is_file():
@@ -108,6 +141,7 @@ def _save(nb: NotebookNode, path: str | os.PathLike) -> None:
     finally:
         if tmp.exists():
             tmp.unlink()
+    return _rev(p)
 
 
 def _check_type(cell_type: str) -> None:
@@ -308,6 +342,20 @@ def _render_outputs(cell: NotebookNode) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Read-only functions (never write, never create a .bak)
 # --------------------------------------------------------------------------- #
+def notebook_rev(path: str | os.PathLike) -> dict[str, Any]:
+    """Return the notebook's current on-disk revision token (``{path, rev}``).
+
+    ``rev`` is a short content hash (see :func:`_rev`). Pass it back as
+    ``expected_rev`` to a mutating call to guard against a concurrent external
+    edit (e.g. an editor saving the same file); or poll it to detect that the
+    file changed on disk. Read-only: never writes.
+    """
+    p = Path(path)
+    if not p.is_file():
+        raise NotebookError(f"Notebook not found: {p}")
+    return {"path": str(p), "rev": _rev(p)}
+
+
 def list_cells(path: str | os.PathLike) -> list[dict[str, Any]]:
     """Return a lightweight index (outline) of every cell.
 
@@ -470,11 +518,13 @@ def insert_cell(
     cell_type: str,
     source: str,
     summary: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict[str, Any]:
     """Insert a new cell *before* ``index``. ``index == len`` appends.
 
     ``summary`` (optional) is stored in the cell's metadata and takes precedence
-    in list_cells' outline.
+    in list_cells' outline. ``expected_rev`` (optional): guard against concurrent
+    external edits (ADR-0017).
     """
     _check_type(cell_type)
     nb = _load(path)
@@ -488,8 +538,8 @@ def insert_cell(
     cell = _new_cell(cell_type, source)
     _set_summary(cell, summary)
     nb.cells.insert(index, cell)
-    _save(nb, path)
-    return {"index": index, "id": cell.get("id")}
+    rev = _save(nb, path, expected_rev)
+    return {"index": index, "id": cell.get("id"), "rev": rev}
 
 
 def _validate_new_cells(cells: list[dict[str, Any]]) -> None:
@@ -516,14 +566,19 @@ def _validate_new_cells(cells: list[dict[str, Any]]) -> None:
 
 
 def insert_cells(
-    path: str | os.PathLike, index: int, cells: list[dict[str, Any]]
+    path: str | os.PathLike,
+    index: int,
+    cells: list[dict[str, Any]],
+    expected_rev: str | None = None,
 ) -> dict[str, Any]:
     """Insert several cells contiguously *before* ``index`` in one atomic write.
 
     ``cells`` is a list of ``{cell_type, source, summary?}`` inserted in order
     (``index == len`` appends). All items are validated first: if any is invalid
     the whole batch fails, naming the offenders, and nothing is written. Returns
-    ``{"indices": [...]}`` — the positions the new cells landed at.
+    ``{"indices": [...], "ids": [...], "rev": ...}`` — the positions the new cells
+    landed at. ``expected_rev`` (optional) guards against concurrent external
+    edits (ADR-0017).
     """
     _validate_new_cells(cells)
     nb = _load(path)
@@ -541,10 +596,13 @@ def insert_cells(
         new.append(cell)
     if new:
         nb.cells[index:index] = new
-        _save(nb, path)
+        rev = _save(nb, path, expected_rev)
+    else:
+        rev = _rev(path)  # no-op: report the unchanged rev
     return {
         "indices": list(range(index, index + len(new))),
         "ids": [c.get("id") for c in new],
+        "rev": rev,
     }
 
 
@@ -577,8 +635,13 @@ def create_notebook(
         _set_summary(cell, item.get("summary"))
         new.append(cell)
     nb.cells = new
-    _save(nb, p)
-    return {"path": str(p), "num_cells": len(new), "ids": [c.get("id") for c in new]}
+    rev = _save(nb, p)
+    return {
+        "path": str(p),
+        "num_cells": len(new),
+        "ids": [c.get("id") for c in new],
+        "rev": rev,
+    }
 
 
 def edit_cell(
@@ -587,12 +650,14 @@ def edit_cell(
     source: str | None = None,
     summary: str | None = None,
     cell_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict[str, Any]:
     """Replace a cell's entire source. Clears outputs if it's a code cell.
 
     Target the cell by ``index`` (0-based) or ``cell_id`` — exactly one.
     ``summary`` (optional): ``None`` keeps any existing summary, a string sets
-    it, a blank string clears it.
+    it, a blank string clears it. ``expected_rev`` (optional) guards against
+    concurrent external edits (ADR-0017).
     """
     if source is None:
         raise NotebookError("edit_cell requires a source string")
@@ -602,8 +667,8 @@ def edit_cell(
     cell["source"] = source
     _clear_outputs(cell)
     _set_summary(cell, summary)
-    _save(nb, path)
-    return {"index": pos, "id": cell.get("id")}
+    rev = _save(nb, path, expected_rev)
+    return {"index": pos, "id": cell.get("id"), "rev": rev}
 
 
 def patch_cell(
@@ -612,12 +677,14 @@ def patch_cell(
     old: str | None = None,
     new: str | None = None,
     cell_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict[str, Any]:
     """Replace a unique ``old`` substring with ``new`` within one cell.
 
     Target the cell by ``index`` (0-based) or ``cell_id`` — exactly one.
     ``old`` must occur exactly once (0 or >1 occurrences raise PatchError).
-    Clears outputs if it's a code cell.
+    Clears outputs if it's a code cell. ``expected_rev`` (optional) guards against
+    concurrent external edits (ADR-0017).
     """
     if old is None or new is None:
         raise NotebookError("patch_cell requires both old and new strings")
@@ -635,24 +702,28 @@ def patch_cell(
         )
     cell["source"] = source.replace(old, new, 1)
     _clear_outputs(cell)
-    _save(nb, path)
-    return {"index": pos, "id": cell.get("id"), "replacements": 1}
+    rev = _save(nb, path, expected_rev)
+    return {"index": pos, "id": cell.get("id"), "replacements": 1, "rev": rev}
 
 
 def delete_cell(
     path: str | os.PathLike,
     index: int | None = None,
     cell_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict[str, Any]:
-    """Delete a cell, addressed by ``index`` (0-based) or ``cell_id``."""
+    """Delete a cell, addressed by ``index`` (0-based) or ``cell_id``.
+
+    ``expected_rev`` (optional) guards against concurrent external edits (ADR-0017).
+    """
     nb = _load(path)
     pos = _resolve(nb, index=index, cell_id=cell_id, action="delete")
     cell = nb.cells[pos]
     deleted_id = cell.get("id")
     cell_type = cell.get("cell_type")
     del nb.cells[pos]
-    _save(nb, path)
-    return {"deleted_index": pos, "id": deleted_id, "type": cell_type}
+    rev = _save(nb, path, expected_rev)
+    return {"deleted_index": pos, "id": deleted_id, "type": cell_type, "rev": rev}
 
 
 def move_cell(
@@ -660,17 +731,19 @@ def move_cell(
     from_index: int | None = None,
     to_index: int | None = None,
     from_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict[str, Any]:
     """Move a cell to ``to_index`` (final position, 0-based).
 
     Address the moved cell by ``from_index`` or ``from_id`` (exactly one); the
     destination ``to_index`` is always positional. Does not clear outputs (source
-    is unchanged).
+    is unchanged). ``expected_rev`` (optional) guards against concurrent external
+    edits (ADR-0017).
     """
     nb = _load(path)
     from_pos = _resolve(nb, index=from_index, cell_id=from_id, action="move")
     _check_index(nb, to_index, action="move to")
     cell = nb.cells.pop(from_pos)
     nb.cells.insert(to_index, cell)
-    _save(nb, path)
-    return {"from": from_pos, "to": to_index, "id": cell.get("id")}
+    rev = _save(nb, path, expected_rev)
+    return {"from": from_pos, "to": to_index, "id": cell.get("id"), "rev": rev}

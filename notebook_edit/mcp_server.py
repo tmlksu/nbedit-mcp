@@ -33,6 +33,20 @@ def _guard(fn, *args, **kwargs) -> Any:
 
 
 @mcp.tool()
+def notebook_rev(path: str) -> dict:
+    """Get the notebook's current revision token: {"path", "rev"}.
+
+    `rev` is a short hash of the file's current on-disk content. Pass it as
+    `expected_rev` to a mutating tool to guard against a concurrent external edit
+    (e.g. the file being saved by an editor between your read and your write): if
+    the file changed since this rev, the write is refused so you can re-read.
+    Read-only. Mutating tools also return the new `rev`, so you can chain edits
+    without re-reading.
+    """
+    return _guard(core.notebook_rev, path)
+
+
+@mcp.tool()
 def create_notebook(path: str, cells: list[dict] | None = None) -> dict:
     """Create a NEW empty .ipynb notebook at `path` (optionally with initial cells).
 
@@ -89,7 +103,12 @@ def read_cells(
 
 @mcp.tool()
 def insert_cell(
-    path: str, index: int, cell_type: str, source: str, summary: str | None = None
+    path: str,
+    index: int,
+    cell_type: str,
+    source: str,
+    summary: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict:
     """Insert a new cell BEFORE `index` (index == cell count appends).
 
@@ -97,12 +116,18 @@ def insert_cell(
     Optionally pass `summary`: a short description stored in cell metadata that
     becomes the cell's `summary` in list_cells (takes precedence over any leading
     `#` comment). Set it so later list_cells calls stay informative.
+    Optionally pass `expected_rev` (from notebook_rev or a prior write) to refuse
+    the write if the file changed on disk since then. Returns the new `rev`.
     """
-    return _guard(core.insert_cell, path, index, cell_type, source, summary)
+    return _guard(
+        core.insert_cell, path, index, cell_type, source, summary, expected_rev
+    )
 
 
 @mcp.tool()
-def insert_cells(path: str, index: int, cells: list[dict]) -> dict:
+def insert_cells(
+    path: str, index: int, cells: list[dict], expected_rev: str | None = None
+) -> dict:
     """Insert several cells at once, contiguously BEFORE `index` (0-based).
 
     Prefer this over many insert_cell calls when adding a block of cells: one
@@ -110,9 +135,10 @@ def insert_cells(path: str, index: int, cells: list[dict]) -> dict:
     objects {cell_type, source, summary?} inserted in order (index == cell count
     appends). The batch is atomic: all items are validated first, and if any is
     invalid nothing is written and the offending items are named — fix those and
-    resend. Returns {"indices": [...]} where the new cells landed.
+    resend. Optionally pass `expected_rev` to guard against concurrent external
+    edits. Returns {"indices": [...], "ids": [...], "rev": ...}.
     """
-    return _guard(core.insert_cells, path, index, cells)
+    return _guard(core.insert_cells, path, index, cells, expected_rev)
 
 
 @mcp.tool()
@@ -122,6 +148,7 @@ def edit_cell(
     index: int | None = None,
     cell_id: str | None = None,
     summary: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict:
     """Replace a cell's ENTIRE source. For small changes prefer patch_cell.
 
@@ -130,8 +157,10 @@ def edit_cell(
     cells change, avoiding off-by-one edits to the wrong cell. Editing a code cell
     clears its outputs and execution_count (they are stale). Optionally pass
     `summary` to set the cell's metadata summary (omit to keep, "" to clear).
+    Optionally pass `expected_rev` to refuse the write if the file changed on disk.
+    Returns the new `rev`.
     """
-    return _guard(core.edit_cell, path, index, source, summary, cell_id)
+    return _guard(core.edit_cell, path, index, source, summary, cell_id, expected_rev)
 
 
 @mcp.tool()
@@ -141,6 +170,7 @@ def patch_cell(
     new: str,
     index: int | None = None,
     cell_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict:
     """Preferred edit tool: replace a unique `old` substring with `new` in a cell.
 
@@ -149,21 +179,27 @@ def patch_cell(
     shift after inserts/deletes/moves, ids don't, so this avoids patching the
     wrong cell. `old` must occur exactly once in the cell; otherwise this errors
     and asks for more context. Keeps diffs small. Editing a code cell clears its
-    outputs.
+    outputs. Optionally pass `expected_rev` (from notebook_rev or a prior write)
+    to refuse the write if the file changed on disk since. Returns the new `rev`,
+    so chained patches can pass it forward without re-reading.
     """
-    return _guard(core.patch_cell, path, index, old, new, cell_id)
+    return _guard(core.patch_cell, path, index, old, new, cell_id, expected_rev)
 
 
 @mcp.tool()
 def delete_cell(
-    path: str, index: int | None = None, cell_id: str | None = None
+    path: str,
+    index: int | None = None,
+    cell_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict:
     """Delete a cell, addressed by `index` (0-based) OR `cell_id` (exactly one).
 
     Prefer `cell_id` from list_cells — an id can't drift onto the wrong cell the
-    way a stale index can.
+    way a stale index can. Optionally pass `expected_rev` to guard against
+    concurrent external edits. Returns the new `rev`.
     """
-    return _guard(core.delete_cell, path, index, cell_id)
+    return _guard(core.delete_cell, path, index, cell_id, expected_rev)
 
 
 @mcp.tool()
@@ -172,13 +208,16 @@ def move_cell(
     to_index: int,
     from_index: int | None = None,
     from_id: str | None = None,
+    expected_rev: str | None = None,
 ) -> dict:
     """Move a cell to `to_index` (final position, 0-based).
 
     Address the moved cell by `from_index` OR `from_id` (stable id; exactly one);
     the destination `to_index` is always positional. Does not clear outputs.
+    Optionally pass `expected_rev` to guard against concurrent external edits.
+    Returns the new `rev`.
     """
-    return _guard(core.move_cell, path, from_index, to_index, from_id)
+    return _guard(core.move_cell, path, from_index, to_index, from_id, expected_rev)
 
 
 def main() -> None:

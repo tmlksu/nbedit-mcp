@@ -5,7 +5,16 @@
 
 ## [Unreleased]
 
-（次の変更をここに追記する）
+### Added
+
+- **書き込みの楽観ロック（`expected_rev` / `notebook_rev`）**（ADR-0017）。VS Code 等の外部エディタと
+  同じファイルを触るときのサイレント上書きを防ぐ。
+  - `notebook_rev(path)`: 現在の rev（内容の `sha256[:12]`）を返す（`{"path", "rev"}`）。read せず token
+    取得・外部変更検知に使える。
+  - 変更系（`insert_cell`/`insert_cells`/`edit_cell`/`patch_cell`/`delete_cell`/`move_cell`）に optional
+    `expected_rev`。read 時点から外部で変わっていれば `NotebookError` で**書かずに拒否**（省略時は無検査＝後方互換）。
+  - 変更系の戻り値に書き込み後の `rev` を追加 → re-read せず連続編集を chain できる。ツールは 9 → 10。
+  - CLI `notebook-rev`、各変更系に `--expected-rev`。
 
 ## [0.7.0] - 2026-07-04
 

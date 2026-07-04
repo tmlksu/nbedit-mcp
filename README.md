@@ -33,6 +33,8 @@ uv sync
 
 ```bash
 uv run nb-edit --version                                    # バージョン表示
+uv run nb-edit notebook-rev foo.ipynb                       # 現在の rev（並行編集ガード用）
+uv run nb-edit patch-cell  foo.ipynb "x=1" "x=2" --index 0 --expected-rev <rev>  # rev 一致時のみ書く
 uv run nb-edit create-notebook foo.ipynb                    # 空 notebook を新規作成
 uv run nb-edit create-notebook foo.ipynb --json '[{"cell_type":"markdown","source":"# Title"}]'  # 初期セル付き
 uv run nb-edit list-cells   foo.ipynb
@@ -82,6 +84,7 @@ Git から取得する場合は `--from` を Git URL に差し替える:
 | ツール | 引数 | 説明 |
 |--------|------|------|
 | `create_notebook` | `path, [cells]` | 新規 `.ipynb` を作成（空 or 初期セル付き。既存は上書き拒否） |
+| `notebook_rev` | `path` | 現在の rev（内容ハッシュ）を返す。並行編集ガード用 |
 | `list_cells` | `path` | 全セルの目次（`id` + `summary` + `has_error`） |
 | `read_cells` | `path, [indices], [offset], [ids]` | 複数セルを一括読み取り（`indices` か `ids` の一方。source 窓＋`outputs_text`/`has_error`/`output_types`） |
 | `insert_cell` | `path, index, cell_type, source, [summary]` | index の前に1セル挿入 |
@@ -95,6 +98,12 @@ Git から取得する場合は `--from` を Git URL に差し替える:
 `patch_cell` の `old` はセル内で**ちょうど1回**一致する必要がある
 （0回・複数回はエラー → 文脈を足して一意にする）。
 
+- **並行編集ガード（optional）**: 変更系（`insert*`/`edit`/`patch`/`delete`/`move`）に `expected_rev` を
+  渡すと、read した時点から**ファイルが外部で変わっていたら書き込みを拒否**する（`NotebookError`）。
+  rev は `notebook_rev` で取得（または直前の書き込みの戻り値 `rev` を流用）。省略時は無検査（後方互換）。
+  変更系は書き込み後の新しい `rev` を返すので、re-read せず連続編集を chain できる。VS Code など外部エディタと
+  同じファイルを触るときのサイレント上書き事故を防ぐ（ADR-0017）。※本ツール側の上書きを止めるだけで、
+  外部エディタ側の reload は別責務。
 - **セル指定**: 既存セルを指すツール（`read`/`edit`/`patch`/`delete`/`move` の対象）は
   **`index`（0始まり）または `id`（安定 ID）のどちらか一方**。`id` は `list_cells`/`read_cells` が返し、
   insert/delete/move してもズレないので、一覧後は `id` 指定が安全（stale index 事故を防ぐ）。

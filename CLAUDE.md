@@ -69,12 +69,16 @@ notebook_edit/
     pyproject は `dynamic=["version"]` で hatchling がここを読む。CLI（`nb-edit --version`）と MCP の
     initialize `serverInfo.version` も `__version__` を名乗る（`mcp._mcp_server.version` に設定）。
     静的な `version=` を pyproject に**書き戻さない**（0.1.0 ドリフトの原因）。
+15. **書き込みは optional `expected_rev` で楽観ロックできる**（[ADR-0017](docs/adr/0017-write-revision-guard.md)）。
+    rev は内容ハッシュ（`_rev`＝`sha256[:12]`）。照合は書き込みの単一チョークポイント `_save`（不変条件2）で、
+    **backup 前**に行い、食い違えば `NotebookError` で書かずに拒否。省略時は無検査（後方互換）。
+    変更系は書き込み後の新 `rev` を返す。カーネル実行はしない（ADR-0002 は不変）——これは競合の*検知*のみ。
 
 ## 開発フロー
 
 ```bash
 uv sync                 # 依存インストール
-uv run pytest -q        # テスト（現在 75 件）
+uv run pytest -q        # テスト（現在 83 件）
 uv run nb-edit --help   # CLI
 uv run nb-edit-mcp      # MCP stdio サーバー（手動起動）
 ```

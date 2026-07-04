@@ -46,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("path")
     p.set_defaults(func=lambda a: core.list_cells(a.path))
 
+    p = sub.add_parser("notebook-rev", help="Print the file's current revision token")
+    p.add_argument("path")
+    p.set_defaults(func=lambda a: core.notebook_rev(a.path))
+
     p = sub.add_parser("read-cells", help="Read one or more cells' source/outputs")
     p.add_argument("path")
     p.add_argument("indices", type=int, nargs="*", help="one or more 0-based indices")
@@ -57,14 +61,26 @@ def build_parser() -> argparse.ArgumentParser:
         )
     )
 
+    def _rev_arg(p):
+        """Add optional --expected-rev for optimistic-concurrency guarded writes."""
+        p.add_argument(
+            "--expected-rev",
+            dest="expected_rev",
+            default=None,
+            help="refuse the write if the file's rev differs (see notebook-rev)",
+        )
+
     p = sub.add_parser("insert-cell", help="Insert a new cell before index")
     p.add_argument("path")
     p.add_argument("index", type=int)
     p.add_argument("cell_type", choices=core._CELL_TYPES)
     p.add_argument("source")
     p.add_argument("--summary", default=None, help="summary stored in cell metadata")
+    _rev_arg(p)
     p.set_defaults(
-        func=lambda a: core.insert_cell(a.path, a.index, a.cell_type, a.source, a.summary)
+        func=lambda a: core.insert_cell(
+            a.path, a.index, a.cell_type, a.source, a.summary, a.expected_rev
+        )
     )
 
     p = sub.add_parser("insert-cells", help="Insert several cells (JSON array) before index")
@@ -76,7 +92,12 @@ def build_parser() -> argparse.ArgumentParser:
         dest="cells_json",
         help='JSON array of {cell_type, source, summary?}',
     )
-    p.set_defaults(func=lambda a: core.insert_cells(a.path, a.index, json.loads(a.cells_json)))
+    _rev_arg(p)
+    p.set_defaults(
+        func=lambda a: core.insert_cells(
+            a.path, a.index, json.loads(a.cells_json), a.expected_rev
+        )
+    )
 
     def _target(p):
         """Add mutually exclusive --index / --id for addressing an existing cell."""
@@ -89,8 +110,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("source")
     _target(p)
     p.add_argument("--summary", default=None, help="summary stored in cell metadata")
+    _rev_arg(p)
     p.set_defaults(
-        func=lambda a: core.edit_cell(a.path, a.index, a.source, a.summary, a.cell_id)
+        func=lambda a: core.edit_cell(
+            a.path, a.index, a.source, a.summary, a.cell_id, a.expected_rev
+        )
     )
 
     p = sub.add_parser("patch-cell", help="Replace a unique old substring with new")
@@ -98,14 +122,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("old")
     p.add_argument("new")
     _target(p)
+    _rev_arg(p)
     p.set_defaults(
-        func=lambda a: core.patch_cell(a.path, a.index, a.old, a.new, a.cell_id)
+        func=lambda a: core.patch_cell(
+            a.path, a.index, a.old, a.new, a.cell_id, a.expected_rev
+        )
     )
 
     p = sub.add_parser("delete-cell", help="Delete a cell (by --index or --id)")
     p.add_argument("path")
     _target(p)
-    p.set_defaults(func=lambda a: core.delete_cell(a.path, a.index, a.cell_id))
+    _rev_arg(p)
+    p.set_defaults(
+        func=lambda a: core.delete_cell(a.path, a.index, a.cell_id, a.expected_rev)
+    )
 
     p = sub.add_parser("move-cell", help="Move a cell to a final position")
     p.add_argument("path")
@@ -113,8 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--from-index", type=int, dest="from_index", help="0-based source index")
     g.add_argument("--from-id", dest="from_id", help="stable id of the cell to move")
+    _rev_arg(p)
     p.set_defaults(
-        func=lambda a: core.move_cell(a.path, a.from_index, a.to_index, a.from_id)
+        func=lambda a: core.move_cell(
+            a.path, a.from_index, a.to_index, a.from_id, a.expected_rev
+        )
     )
 
     return parser

@@ -295,7 +295,8 @@ def test_insert_cells_append_at_len(nb_path):
 
 def test_insert_cells_empty_is_noop(nb_path):
     before = core.list_cells(nb_path)
-    assert core.insert_cells(nb_path, 1, []) == {"indices": [], "ids": []}
+    empty = core.insert_cells(nb_path, 1, [])
+    assert empty["indices"] == [] and empty["ids"] == []
     assert core.list_cells(nb_path) == before
     assert not (nb_path.parent / (nb_path.name + ".bak")).exists()  # no write
 
@@ -473,7 +474,7 @@ def test_read_cells_unknown_id_lists_offender(nb_path):
 def test_edit_by_id_hits_right_cell(nb_path):
     cid = _id_at(nb_path, 1)
     result = core.edit_cell(nb_path, source="y = 2", cell_id=cid)
-    assert result == {"index": 1, "id": cid}
+    assert result["index"] == 1 and result["id"] == cid
     assert core.read_cells(nb_path, ids=[cid])[0]["source"] == "y = 2"
 
 
@@ -540,7 +541,7 @@ def test_insert_cells_returns_ids(nb_path):
 def test_create_empty_notebook(tmp_path):
     p = tmp_path / "new.ipynb"
     result = core.create_notebook(p)
-    assert result == {"path": str(p), "num_cells": 0, "ids": []}
+    assert result["path"] == str(p) and result["num_cells"] == 0 and result["ids"] == []
     assert p.is_file()
     nbformat.validate(nbformat.read(str(p), as_version=4))  # raises if invalid
     assert core.list_cells(p) == []
@@ -602,3 +603,57 @@ def test_version_matches_distribution_metadata():
     from importlib.metadata import version
 
     assert version("notebook-edit") == notebook_edit.__version__
+
+
+# --------------------------------------------------------------------------- #
+# Write revision guard / optimistic concurrency (ADR-0017)
+# --------------------------------------------------------------------------- #
+def test_notebook_rev_shape_and_stability(nb_path):
+    r = core.notebook_rev(nb_path)
+    assert set(r) == {"path", "rev"}
+    assert r["path"] == str(nb_path)
+    assert len(r["rev"]) == 12 and all(c in "0123456789abcdef" for c in r["rev"])
+    assert core.notebook_rev(nb_path)["rev"] == r["rev"]  # stable when unchanged
+
+
+def test_notebook_rev_missing_file(tmp_path):
+    with pytest.raises(NotebookError):
+        core.notebook_rev(tmp_path / "nope.ipynb")
+
+
+def test_mutation_returns_new_matching_rev(nb_path):
+    before = core.notebook_rev(nb_path)["rev"]
+    res = core.edit_cell(nb_path, 0, "# changed")
+    assert res["rev"] != before
+    assert res["rev"] == core.notebook_rev(nb_path)["rev"]
+
+
+def test_expected_rev_match_allows_write(nb_path):
+    rev = core.notebook_rev(nb_path)["rev"]
+    res = core.patch_cell(nb_path, 1, "x = 1", "x = 5", expected_rev=rev)
+    assert res["replacements"] == 1
+    assert core.read_cells(nb_path, [1])[0]["source"].startswith("x = 5")
+
+
+def test_expected_rev_mismatch_refuses_and_preserves(nb_path):
+    """A stale expected_rev (file changed externally in between) is refused, and
+    the concurrent external change is NOT clobbered."""
+    stale = core.notebook_rev(nb_path)["rev"]
+    core.edit_cell(nb_path, 0, "# external change")  # unguarded write by "someone else"
+    changed = nb_path.read_bytes()
+    with pytest.raises(NotebookError) as exc:
+        core.patch_cell(nb_path, 1, "x = 1", "x = 9", expected_rev=stale)
+    assert "changed on disk" in str(exc.value)
+    assert nb_path.read_bytes() == changed  # refused write left the file intact
+
+
+def test_expected_rev_chaining_without_reread(nb_path):
+    r1 = core.edit_cell(nb_path, 0, "# one")
+    r2 = core.edit_cell(nb_path, 0, "# two", expected_rev=r1["rev"])  # chain on r1's rev
+    assert r2["rev"] == core.notebook_rev(nb_path)["rev"]
+
+
+def test_expected_rev_none_is_unguarded(nb_path):
+    """Omitting expected_rev keeps the pre-ADR-0017 behaviour (no check)."""
+    core.edit_cell(nb_path, 0, "# whatever")  # no expected_rev -> always allowed
+    assert core.read_cells(nb_path, [0])[0]["source"] == "# whatever"

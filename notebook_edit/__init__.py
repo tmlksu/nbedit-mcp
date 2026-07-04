@@ -22,6 +22,7 @@ from notebook_edit.core import (
     insert_cells,
     list_cells,
     move_cell,
+    notebook_rev,
     patch_cell,
     read_cells,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "CellTypeError",
     "PatchError",
     "create_notebook",
+    "notebook_rev",
     "list_cells",
     "read_cells",
     "insert_cell",
