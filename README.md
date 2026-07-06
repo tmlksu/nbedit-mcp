@@ -71,13 +71,33 @@ MCP 対応クライアントの stdio サーバー設定に `nb-edit-mcp` を登
 }
 ```
 
-Git から取得する場合は `--from` を Git URL に差し替える:
+Git から取得する場合は `--from` を Git URL に差し替える（**バージョン固定推奨**、`@<tag>`）:
 
 ```json
-"args": ["--from", "git+https://github.com/<owner>/nbedit-mcp", "nb-edit-mcp"]
+"args": ["--from", "git+https://github.com/tmlksu/nbedit-mcp@v0.8.0", "nb-edit-mcp"]
 ```
 
-相対パスはサーバーの CWD（通常はクライアントが開いているプロジェクト）基準で解決される。
+タグを省くと最新の `HEAD` を取得する。相対パスはサーバーの CWD（通常はクライアントが開いている
+プロジェクト）基準で解決される。
+
+> **注意**: パッケージを指すのは `--from`（`--with` ではない）。`command` は `uvx`、`args` の最後は
+> 実行するコマンド名 `nb-edit-mcp`。
+
+#### トラブルシューティング: `Failed to resolve --with requirement` / `Git operation failed`
+
+これは uv が **`--from` の Git URL を fetch できていない**サイン（メッセージ上は `--with` と出るが実体は
+`--from` の git 解決失敗）。次を確認する:
+
+- URL の `owner/repo` が正しいか（`tmlksu/nbedit-mcp`）。README のプレースホルダ `<owner>` を
+  置換し忘れると `%3Cowner%3E` になって失敗する。
+- 指定した `@<tag>` が存在するか（例: `@v0.8.0`）。存在しない ref も同じ失敗になる。
+- private repo・ネットワーク/プロキシで git fetch がブロックされていないか。
+
+手元で切り分けるには `--from` 単体で実行してみる（成功すれば `nb-edit 0.8.0` が出る）:
+
+```bash
+uvx --from git+https://github.com/tmlksu/nbedit-mcp@v0.8.0 nb-edit --version
+```
 
 ### 公開ツール
 

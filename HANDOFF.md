@@ -3,7 +3,7 @@
 次のセッション（人間 or LLM）が最初に読むファイル。「今どこまで出来ていて、次に何をするか」だけを書く。
 恒久ルールは [CLAUDE.md](CLAUDE.md)、決定理由は [docs/adr/](docs/adr/)、変更履歴は [CHANGELOG.md](CHANGELOG.md)。
 
-**最終更新: 2026-07-04**
+**最終更新: 2026-07-06**
 
 ## 現在地（一言で）
 
@@ -26,8 +26,10 @@
 
 ## 次の一手（優先度順・任意）
 
-1. **配布**: クライアントの MCP 設定に `--from git+<repo URL> nb-edit-mcp`
-   （またはローカル path）を登録する運用に乗せる。
+1. **配布**: クライアントの MCP 設定に
+   `--from git+https://github.com/tmlksu/nbedit-mcp@v0.8.0 nb-edit-mcp`（またはローカル path）を登録。
+   ※ パッケージ指定は `--from`（`--with` ではない）。`<owner>` 未置換や存在しない `@tag` は
+   `Failed to resolve --with requirement` / `Git operation failed` になる（README のトラブルシュート参照）。
 2. **CI の Node20 非推奨警告**（非ブロッキング）: `actions/checkout` / `astral-sh/setup-uv` を
    新しい major に上げると消える。緊急ではない。
 3. **機能拡張の検討ネタ**（要望が出たら ADR とセットで）:
